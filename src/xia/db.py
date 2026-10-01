@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS consultas (
     creada        timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE consultas ADD COLUMN IF NOT EXISTS pregunta_reformulada text;
+ALTER TABLE consultas ADD COLUMN IF NOT EXISTS intencion text;  -- 'consulta' | 'charla'; la charla no consume cuota
+ALTER TABLE areas ADD COLUMN IF NOT EXISTS ejemplos text[];     -- preguntas de ejemplo para sugerir al usuario
 CREATE INDEX IF NOT EXISTS consultas_usuario_idx ON consultas (usuario_ad, creada);
 """
 

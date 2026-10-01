@@ -49,7 +49,15 @@ def evaluar(pregunta: dict, modelo: str, usar_historial: bool = True) -> dict:
 
     fila = {"id": pregunta["id"], "respuesta": res.respuesta, "sin_contexto": res.sin_contexto,
             "similitud": round(res.mejor_similitud, 3), "segundos": round(segundos, 1)}
-    if pregunta.get("sin_contexto"):
+    fila["intencion"] = res.intencion
+    if "charla" in pregunta:
+        # charla: true  -> debe responder natural, sin fuentes ni "no encontré"; charla: false -> NO debe tomarse por charla.
+        if pregunta["charla"]:
+            fila["ok"] = res.intencion == "charla" and not res.sin_contexto and not res.fuentes
+        else:
+            fila["ok"] = res.intencion != "charla"
+        fila["tipo"] = "charla"
+    elif pregunta.get("sin_contexto"):
         fila["ok"] = res.sin_contexto
         fila["tipo"] = "rechazo"
     else:
@@ -67,12 +75,15 @@ def evaluar(pregunta: dict, modelo: str, usar_historial: bool = True) -> dict:
 def resumen(modelo: str, filas: list[dict]) -> None:
     resp = [f for f in filas if f.get("tipo") == "respuesta"]
     rech = [f for f in filas if f.get("tipo") == "rechazo"]
+    charla = [f for f in filas if f.get("tipo") == "charla"]
     tiempos = [f["segundos"] for f in filas if "segundos" in f]
     print(f"\n=== {modelo} ===")
     print(f"  Respuestas correctas : {sum(f['ok'] for f in resp)}/{len(resp)}")
     print(f"  Recuperación acierta : {sum(f.get('recuperacion_ok', False) for f in resp)}/{len(resp)}")
     print(f"  Fuente citada ok     : {sum(f.get('fuente_ok', False) for f in resp)}/{len(resp)}")
     print(f"  Rechazos correctos   : {sum(f['ok'] for f in rech)}/{len(rech)}")
+    if charla:
+        print(f"  Charla / controles   : {sum(f['ok'] for f in charla)}/{len(charla)}")
     print(f"  Fallos               : {sum(f.get('falla') == 'falso_rechazo' for f in resp)} falsos rechazos, "
           f"{sum(f.get('falla') == 'respuesta_incorrecta' for f in resp)} respuestas incorrectas "
           f"(+ {sum(not f['ok'] for f in rech)} no rechazó lo que debía)")

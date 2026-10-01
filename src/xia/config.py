@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     max_chars_fragmento: int = 1500
 
     top_k: int = 6
+    # Detección de charla (calibrar con eval/calibrar_charla.py): por encima de `seguro` es charla sin más; por debajo de
+    # `dudoso` es consulta; en medio (y solo en mensajes cortos) decide el modelo con una llamada breve.
+    umbral_charla_seguro: float = 0.80
+    umbral_charla_dudoso: float = 0.50
     # Reordenamiento fino de los candidatos: "ninguno" o "cross-encoder" (requiere `pip install .[rerank]`).
     reranker: str = "ninguno"
     modelo_reranker: str = "BAAI/bge-reranker-v2-m3"

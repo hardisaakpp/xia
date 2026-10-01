@@ -5,6 +5,11 @@ areas:
   - codigo: odc-mba3
     nombre: Gestión de ODC / MBA3
     descripcion: Documentación de api-odc-mba3 (pedidos, órdenes de compra, integración SAP).
+    # Preguntas de ejemplo que Xia sugiere cuando algo queda fuera de alcance (deben poder responderse con estos documentos).
+    ejemplos:
+      - "¿Qué estado tiene un pedido cuando falla el envío de la ODC a SAP?"
+      - "¿Qué permiso necesita el perfil Producción El Rayo?"
+      - "¿Qué hace la reconciliación automática diaria?"
     fuente:
       tipo: carpeta
       ruta: ../api-odc-mba3/docs

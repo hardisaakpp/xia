@@ -117,7 +117,7 @@
     - {rol: user, texto: "¿Qué hace la reconciliación automática diaria?"}
     - {rol: bot, texto: "Reintenta con SAP las Solicitudes de Traslado que quedaron pendientes."}
   pregunta: ¿Y si un traslado queda en error, debo reintentarlo de inmediato?
-  contiene: [[noche, no es necesario, no hace falta]]
+  contiene: [[noche, no es necesario, no hace falta, no debes, automátic]]  # el manual: no hace falta reintentar, la reconciliación lo hace esa noche
   documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md]
 
 - id: seg-incidente-202
@@ -160,3 +160,30 @@
   pregunta: ¿La autenticación JWT es opcional?
   contiene: [[siempre activa, no es opcional, siempre]]
   documentos: [SEGURIDAD.md]
+
+# ── Charla (nivel conversacional): debe responder natural, sin consultar documentos ni citar fuentes.
+- {id: charla-hola, pregunta: hola, charla: true}
+- {id: charla-buenos-dias, pregunta: buenos días, charla: true}
+- {id: charla-gracias, pregunta: muchas gracias, charla: true}
+- {id: charla-quien-eres, pregunta: "¿quién eres?", charla: true}
+- {id: charla-que-puedes, pregunta: "¿qué puedes hacer?", charla: true}
+- {id: charla-adios, pregunta: hasta luego, charla: true}
+- id: charla-con-historial
+  historial:
+    - {rol: user, texto: "¿Qué permiso necesita el perfil Producción El Rayo?"}
+    - {rol: bot, texto: "Necesita el permiso produccion-elrayo.view."}
+  pregunta: gracias, eso era todo
+  charla: true
+
+# Controles: mensajes que EMPIEZAN como charla o son muy cortos pero SON consultas; no deben tomarse por charla.
+- id: charla-ctrl-saludo-y-consulta
+  pregunta: hola, ¿qué estado tiene un pedido cuando falla el envío de la ODC a SAP y se puede reintentar?
+  contiene: [ERROR ENVIO SAP REINTENTO]
+  documentos: [ESTADOS_PEDIDO.md]
+- id: charla-ctrl-gracias-y-consulta
+  pregunta: gracias, ¿qué permiso necesita el perfil Producción El Rayo?
+  contiene: [produccion-elrayo.view]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md]
+- {id: charla-ctrl-corta-1, pregunta: ayuda con SAP, charla: false}
+- {id: charla-ctrl-corta-2, pregunta: pedidos, charla: false}
+- {id: charla-ctrl-corta-3, pregunta: estados del pedido, charla: false}

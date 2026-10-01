@@ -40,7 +40,7 @@ def embeber(textos: list[str]) -> list[list[float]]:
     return vectores
 
 
-def generar(mensajes: list[dict[str, str]], modelo: str | None = None) -> str:
+def generar(mensajes: list[dict[str, str]], modelo: str | None = None, temperatura: float = 0.1) -> str:
     s = get_settings()
     if not _cola.acquire(timeout=s.espera_cola_s):
         raise XiaError("demasiadas-peticiones", "Hay muchas consultas en curso. Intenta de nuevo en unos segundos.", 429,
@@ -54,7 +54,7 @@ def generar(mensajes: list[dict[str, str]], modelo: str | None = None) -> str:
                 "stream": False,
                 "think": s.pensar,
                 "keep_alive": "30m",
-                "options": {"temperature": 0.1, "num_ctx": s.ollama_num_ctx},
+                "options": {"temperature": temperatura, "num_ctx": s.ollama_num_ctx},
             },
         )
     finally:

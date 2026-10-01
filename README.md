@@ -79,6 +79,21 @@ Los demás modelos se midieron con la recuperación anterior (13/14); con la act
 La muestra es pequeña y la escribió quien armó el pipeline: sirve para descartar (llama3 y mistral) y para
 orientar, **no** para afirmar que qwen3 sea "el mejor". Ampliar con preguntas reales de usuarios.
 
+## Charla y negativas
+
+Antes de buscar en la documentación, `src/xia/intencion.py` detecta **charla** (saludos, gracias, despedidas, "¿quién
+eres?", "¿qué puedes hacer?") en tres zonas según la similitud del embedding con unas frases de ejemplo: muy parecido →
+charla sin gastar el modelo; nada parecido → consulta; en medio (solo mensajes de hasta 8 palabras) → el modelo decide
+con una llamada de una palabra. La charla se responde natural, **no cita fuentes ni consume cuota**, y se decide con el
+mensaje original (antes de reformular con el historial).
+
+Cuando algo queda fuera de alcance, la negativa orienta: dice de qué temas sí puede hablar y sugiere una pregunta de
+ejemplo (`ejemplos:` de cada área en `sources.yaml`).
+
+`eval/calibrar_charla.py` mide el clasificador con frases que NO están entre los ejemplos: 23/23 charla detectada y
+0/25 consultas cortas tomadas por charla (2026-10-01). Con la similitud sola no hay umbral que separe ("ayuda con SAP"
+puntúa más alto que "súper"), de ahí las tres zonas.
+
 ## Reranker (implementado, apagado)
 
 `XIA_RERANKER=cross-encoder` reordena 20 candidatos con `BAAI/bge-reranker-v2-m3` (requiere `pip install .[rerank]` y PyTorch).

@@ -56,9 +56,10 @@ def indexar_area(area: dict[str, Any], base: Path, forzar: bool = False) -> dict
 
     with db.pool().connection() as conn:
         conn.execute(
-            "INSERT INTO areas (codigo, nombre, descripcion) VALUES (%s, %s, %s) "
-            "ON CONFLICT (codigo) DO UPDATE SET nombre = EXCLUDED.nombre, descripcion = EXCLUDED.descripcion",
-            (codigo, area["nombre"], area.get("descripcion")),
+            "INSERT INTO areas (codigo, nombre, descripcion, ejemplos) VALUES (%s, %s, %s, %s) "
+            "ON CONFLICT (codigo) DO UPDATE SET nombre = EXCLUDED.nombre, descripcion = EXCLUDED.descripcion, "
+            "ejemplos = EXCLUDED.ejemplos",
+            (codigo, area["nombre"], area.get("descripcion"), area.get("ejemplos") or []),
         )
         existentes = {r[0]: (r[1], r[2]) for r in conn.execute(
             "SELECT ruta, id, hash FROM documentos WHERE area = %s", (codigo,))}

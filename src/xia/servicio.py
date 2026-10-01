@@ -14,12 +14,12 @@ log = logging.getLogger("xia.servicio")
 
 def _auditar(traza: str, usuario_ad: str, pregunta: str, areas: list[str], *, modelo: str | None = None,
              ms: int | None = None, sin_contexto: bool | None = None, ids: list[int] | None = None,
-             reformulada: str | None = None, error: str | None = None) -> None:
+             reformulada: str | None = None, intencion: str | None = None, error: str | None = None) -> None:
     with db.pool().connection() as conn:
         conn.execute(
             "INSERT INTO consultas (traza_id, usuario_ad, pregunta, areas, modelo, ms, sin_contexto, fragmentos_ids, "
-            "pregunta_reformulada, error) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-            (traza, usuario_ad, pregunta, areas, modelo, ms, sin_contexto, ids, reformulada, error),
+            "pregunta_reformulada, intencion, error) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (traza, usuario_ad, pregunta, areas, modelo, ms, sin_contexto, ids, reformulada, intencion, error),
         )
 
 
@@ -47,7 +47,7 @@ def responder(usuario_ad: str, pregunta: str, areas: list[str] | None,
     ms = int((time.perf_counter() - inicio) * 1000)
     _auditar(traza, usuario_ad, pregunta, r.areas_consultadas, modelo=r.modelo, ms=ms,
              sin_contexto=r.sin_contexto, ids=r.fragmentos_ids,
-             reformulada=r.pregunta_efectiva if r.pregunta_efectiva != pregunta else None)
+             reformulada=r.pregunta_efectiva if r.pregunta_efectiva != pregunta else None, intencion=r.intencion)
     log.info("traza=%s usuario=%s ms=%d sin_contexto=%s sim=%.3f", traza, usuario_ad, ms, r.sin_contexto, r.mejor_similitud)
 
     return {

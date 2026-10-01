@@ -7,11 +7,23 @@ from dataclasses import dataclass, field
 from xia import db
 from xia.config import get_settings
 from xia.errores import XiaError
+from xia.intencion import es_charla
 from xia.llm import embeber, generar
 from xia.retrieval import Recuperado, recuperar
 
 MARCA_SIN_INFO = "NO_HAY_INFORMACION"
 MENSAJE_SIN_CONTEXTO = "No encontré información sobre eso en la documentación disponible."
+
+_SISTEMA_CHARLA = """Eres Xia, el asistente virtual de SCNEXUS. Estás conversando con una persona de la organización.
+
+Lo que SÍ haces: respondes preguntas sobre la documentación publicada de la organización y citas las fuentes. Documentación disponible ahora: {temas}.
+Lo que NO haces: no ves datos en vivo (pedidos, inventarios, saldos), no ejecutas acciones en los sistemas y no respondes temas ajenos a esa documentación.
+
+Reglas:
+- Responde en español, con calidez y brevedad (1 a 3 frases).
+- Si saludan, saluda y ofrece ayuda. Si agradecen, responde con amabilidad. Si se despiden, despídete.
+- Si preguntan quién eres o qué puedes hacer, explícalo con lo anterior{ejemplo}.
+- No inventes nada sobre ti, sobre la organización ni sobre sus sistemas."""
 
 _SISTEMA = f"""Eres Xia, el asistente de SCNEXUS. Respondes preguntas usando ÚNICAMENTE los fragmentos de documentación que se te entregan.
 
@@ -74,6 +86,7 @@ class Resultado:
     mejor_similitud: float = 0.0
     documentos_recuperados: list[str] = field(default_factory=list)  # para evaluar la recuperación aparte de la generación
     pregunta_efectiva: str = ""  # la que se usó para buscar: la reformulada si había historial
+    intencion: str = "consulta"  # 'charla' = saludo/agradecimiento/identidad: no consulta la documentación ni gasta cuota
 
 
 def resolver_areas(solicitadas: list[str] | None) -> list[str]:
@@ -89,6 +102,43 @@ def resolver_areas(solicitadas: list[str] | None) -> list[str]:
     if not con_docs:
         raise XiaError("sin-areas", "No hay documentación publicada para consultar todavía.", 404)
     return con_docs
+
+
+def _catalogo(codigos: list[str] | None = None) -> list[tuple[str, list[str]]]:
+    """(nombre, ejemplos) de las áreas con documentos; `codigos` restringe a esas áreas."""
+    with db.pool().connection() as conn:
+        filas = conn.execute(
+            "SELECT a.nombre, COALESCE(a.ejemplos, '{}') FROM areas a "
+            "WHERE EXISTS (SELECT 1 FROM fragmentos f WHERE f.area = a.codigo) "
+            "AND (%(c)s::text[] IS NULL OR a.codigo = ANY(%(c)s)) ORDER BY a.codigo",
+            {"c": codigos},
+        ).fetchall()
+    return [(nombre, list(ejemplos)) for nombre, ejemplos in filas]
+
+
+def mensaje_sin_contexto(codigos: list[str]) -> str:
+    """Negativa que orienta: dice de qué temas sí puede hablar y sugiere una pregunta de ejemplo."""
+    catalogo = _catalogo(codigos)
+    if not catalogo:
+        return MENSAJE_SIN_CONTEXTO
+    temas = ", ".join(nombre for nombre, _ in catalogo)
+    ejemplo = next((e[0] for _, e in catalogo if e), None)
+    sugerencia = f" Por ejemplo: «{ejemplo}»" if ejemplo else ""
+    return f"{MENSAJE_SIN_CONTEXTO} Puedo ayudarte con: {temas}.{sugerencia}"
+
+
+def _charlar(pregunta: str, historial: list[dict[str, str]] | None, modelo: str) -> Resultado:
+    """Responde saludos, agradecimientos y preguntas sobre Xia sin consultar la documentación."""
+    catalogo = _catalogo()
+    temas = ", ".join(nombre for nombre, _ in catalogo) or "aún no hay documentación publicada"
+    ejemplo = next((e[0] for _, e in catalogo if e), None)
+    sistema = _SISTEMA_CHARLA.format(temas=temas, ejemplo=f' e invita a preguntar, por ejemplo: «{ejemplo}»' if ejemplo else "")
+    previos = [{"role": "user" if t["rol"] == "user" else "assistant", "content": t["texto"][:_MAX_CHARS_TURNO]}
+               for t in (historial or [])[-_TURNOS_REFORMULACION:]]
+    texto = generar([{"role": "system", "content": sistema}, *previos, {"role": "user", "content": pregunta}],
+                    modelo, temperatura=0.5)
+    return Resultado(texto or "¡Hola! ¿En qué puedo ayudarte?", [], False, [], modelo, pregunta_efectiva=pregunta,
+                     intencion="charla")
 
 
 def _prompt_usuario(pregunta: str, fragmentos: list[Recuperado]) -> str:
@@ -127,10 +177,10 @@ def reformular(pregunta: str, historial: list[dict[str, str]], modelo: str) -> s
     return reescrita
 
 
-def buscar(pregunta: str, areas: list[str]) -> list[Recuperado]:
+def buscar(pregunta: str, areas: list[str], vector: list[float] | None = None) -> list[Recuperado]:
     """Fragmentos más relevantes: búsqueda híbrida y, si está activado, reordenados por un reranker."""
     s = get_settings()
-    vector = embeber([pregunta])[0]
+    vector = vector or embeber([pregunta])[0]
     if s.reranker == "ninguno":
         return recuperar(pregunta, vector, areas)
     from xia.rerank import reordenar  # import perezoso: el reranker trae dependencias pesadas y es opcional
@@ -143,14 +193,21 @@ def ejecutar(pregunta: str, areas: list[str] | None, modelo: str | None = None,
              historial: list[dict[str, str]] | None = None) -> Resultado:
     s = get_settings()
     modelo = modelo or s.modelo_generacion
-    areas_consultadas = resolver_areas(areas)
 
+    # La charla se decide con el mensaje ORIGINAL, antes de reformular: "gracias" no debe mezclarse con el historial.
+    vector = embeber([pregunta])[0]
+    if es_charla(pregunta, vector, modelo):
+        return _charlar(pregunta, historial, modelo)
+
+    areas_consultadas = resolver_areas(areas)
     # Sin historial no se paga la llamada extra al modelo.
     efectiva = reformular(pregunta, historial, modelo) if historial else pregunta
-    fragmentos = buscar(efectiva, areas_consultadas)
+    if efectiva != pregunta:
+        vector = embeber([efectiva])[0]
+    fragmentos = buscar(efectiva, areas_consultadas, vector)
     mejor = max((f.similitud for f in fragmentos), default=0.0)
 
-    base = Resultado(MENSAJE_SIN_CONTEXTO, [], True, areas_consultadas, modelo,
+    base = Resultado(mensaje_sin_contexto(areas_consultadas), [], True, areas_consultadas, modelo,
                      [f.id for f in fragmentos], mejor, [f.ruta for f in fragmentos], efectiva)
     if not fragmentos or mejor < s.umbral_relevancia:
         return base  # Sin contexto confiable: no se gasta una generación (ni se arriesga a inventar).

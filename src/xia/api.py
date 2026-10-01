@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from xia import cuota, db, servicio
+from xia import cuota, db, intencion, servicio
 from xia.errores import XiaError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
@@ -22,6 +22,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s
 async def lifespan(_: FastAPI):
     db.iniciar_esquema()
     db.pool()
+    try:
+        intencion.precalentar()  # si Ollama aún no está, se calcula en la primera consulta
+    except Exception:  # noqa: BLE001
+        logging.getLogger("xia.api").warning("No se pudo precalentar la detección de charla")
     yield
     db.cerrar_pool()
 
