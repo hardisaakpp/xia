@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, Literal
 
 import psycopg
 from fastapi import FastAPI, Request
@@ -29,10 +29,18 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="Xia", version="0.1.0", lifespan=lifespan)
 
 
+class Turno(BaseModel):
+    rol: Literal["user", "bot"]
+    texto: str = Field(max_length=4000)
+
+
 class PreguntaIn(BaseModel):
     usuario_ad: str = Field(min_length=1, max_length=100)
     pregunta: str = Field(min_length=3, max_length=1000)
     areas: list[str] | None = None
+    # Conversación previa (sin incluir la pregunta actual), la más antigua primero. Opcional: sin ella, cada
+    # pregunta se trata sola. Solo se usan los últimos turnos; el cliente puede mandar menos de 10.
+    historial: list[Turno] | None = Field(default=None, max_length=10)
 
 
 @app.exception_handler(XiaError)
@@ -65,7 +73,8 @@ async def _inesperado(_: Request, e: Exception) -> JSONResponse:
 @app.post("/v1/preguntar")
 def preguntar(cuerpo: PreguntaIn) -> dict[str, Any]:
     # `def` (no `async`): corre en el threadpool, porque Ollama y la BD se llaman de forma bloqueante.
-    return servicio.responder(cuerpo.usuario_ad.strip(), cuerpo.pregunta.strip(), cuerpo.areas)
+    historial = [t.model_dump() for t in cuerpo.historial] if cuerpo.historial else None
+    return servicio.responder(cuerpo.usuario_ad.strip(), cuerpo.pregunta.strip(), cuerpo.areas, historial)
 
 
 @app.get("/v1/cuota")

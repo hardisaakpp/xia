@@ -34,15 +34,15 @@ def _norm(texto: str) -> str:
 def _contiene(respuesta: str, requisitos: list) -> bool:
     r = _norm(respuesta)
     return all(
-        any(_norm(alt) in r for alt in (req if isinstance(req, list) else [req]))
+        any(_norm(str(alt)) in r for alt in (req if isinstance(req, list) else [req]))
         for req in requisitos
     )
 
 
-def evaluar(pregunta: dict, modelo: str) -> dict:
+def evaluar(pregunta: dict, modelo: str, usar_historial: bool = True) -> dict:
     inicio = time.perf_counter()
     try:
-        res = ejecutar(pregunta["pregunta"], None, modelo)
+        res = ejecutar(pregunta["pregunta"], None, modelo, pregunta.get("historial") if usar_historial else None)
     except XiaError as e:
         return {"id": pregunta["id"], "error": e.codigo, "ok": False, "segundos": time.perf_counter() - inicio}
     segundos = time.perf_counter() - inicio
@@ -87,6 +87,8 @@ def main() -> None:
     ap.add_argument("--modelos", help="Lista separada por comas (por defecto, el configurado)")
     ap.add_argument("--umbral", type=float, help="Sobrescribe XIA_UMBRAL_RELEVANCIA para esta corrida")
     ap.add_argument("--id", help="Solo una pregunta")
+    ap.add_argument("--sin-historial", action="store_true",
+                    help="Ignora el campo `historial` de las preguntas (línea base: cómo sería sin memoria)")
     args = ap.parse_args()
 
     s = get_settings()
@@ -105,7 +107,7 @@ def main() -> None:
             ejecutar("hola", None, modelo)
         except XiaError:
             pass
-        todo[modelo] = [evaluar(p, modelo) for p in preguntas]
+        todo[modelo] = [evaluar(p, modelo, not args.sin_historial) for p in preguntas]
         resumen(modelo, todo[modelo])
 
     salida = AQUI / "resultados"

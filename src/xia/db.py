@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS consultas (
     error         text,
     creada        timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE consultas ADD COLUMN IF NOT EXISTS pregunta_reformulada text;
 CREATE INDEX IF NOT EXISTS consultas_usuario_idx ON consultas (usuario_ad, creada);
 """
 

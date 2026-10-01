@@ -93,3 +93,70 @@
 - id: fuera-receta
   pregunta: Dame una receta de ceviche de camarón.
   sin_contexto: true
+
+# ── Seguimientos: la pregunta no se entiende sin el historial (nivel 2: memoria + reformulación).
+# `historial` va de más antiguo a más nuevo, sin la pregunta actual. Correr con y sin --sin-historial para ver el efecto.
+- id: seg-id-del-estado
+  historial:
+    - {rol: user, texto: "¿Qué estado tiene un pedido cuando falla el envío de la ODC a SAP y se puede reintentar?"}
+    - {rol: bot, texto: "El pedido queda en el estado ERROR ENVIO SAP REINTENTO."}
+  pregunta: ¿Y qué número de estado_id tiene ese estado?
+  contiene: ["21"]
+  documentos: [ESTADOS_PEDIDO.md]
+
+- id: seg-produccion-que-ve
+  historial:
+    - {rol: user, texto: "¿Qué permiso necesita el perfil Producción El Rayo?"}
+    - {rol: bot, texto: "Necesita el permiso produccion-elrayo.view."}
+  pregunta: ¿Y qué pedidos puede ver?
+  contiene: [Nuevo Pedido, Gestionar Pedido]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md]
+
+- id: seg-traslado-error
+  historial:
+    - {rol: user, texto: "¿Qué hace la reconciliación automática diaria?"}
+    - {rol: bot, texto: "Reintenta con SAP las Solicitudes de Traslado que quedaron pendientes."}
+  pregunta: ¿Y si un traslado queda en error, debo reintentarlo de inmediato?
+  contiene: [[noche, no es necesario, no hace falta]]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md]
+
+- id: seg-incidente-202
+  historial:
+    - {rol: user, texto: "¿Qué significa que SAP responda HTTP 202 al crear una ODC?"}
+    - {rol: bot, texto: "Que SAP está saturado y el middleware dejó el trabajo en cola; no es un error definitivo."}
+  pregunta: ¿Y qué pasó en el incidente cuando se reintentó?
+  contiene: [[duplic, 24712]]
+  documentos: [RESOLUCION_ODC_ENCOLADA_202.md]
+
+# Control: una pregunta que ya se entiende sola, con un historial de otro tema, no debe desviarse.
+- id: seg-control-autosuficiente
+  historial:
+    - {rol: user, texto: "¿Qué permiso necesita el perfil Producción El Rayo?"}
+    - {rol: bot, texto: "Necesita el permiso produccion-elrayo.view."}
+  pregunta: ¿Qué estado tiene un pedido que canceló El Rayo?
+  contiene: [CANCELADO POR EL RAYO]
+  documentos: [ESTADOS_PEDIDO.md]
+
+# Control: el historial no debe volver "respondible" una pregunta fuera de alcance.
+- id: seg-fuera-de-alcance
+  historial:
+    - {rol: user, texto: "¿Qué estado tiene un pedido que canceló El Rayo?"}
+    - {rol: bot, texto: "CANCELADO POR EL RAYO."}
+  pregunta: ¿Y cuál es la capital de Francia?
+  sin_contexto: true
+
+- id: seg-control-2
+  historial:
+    - {rol: user, texto: "¿Qué significa que SAP responda HTTP 202 al crear una ODC?"}
+    - {rol: bot, texto: "Que SAP está saturado y el middleware dejó el trabajo en cola."}
+  pregunta: ¿Qué permiso habilita el panel Información Pedidos y ODC del dashboard?
+  contiene: [funcionalidades-admin.view]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md]
+
+- id: seg-control-3
+  historial:
+    - {rol: user, texto: "¿Qué estado tiene un pedido cuando falla el envío de la ODC a SAP?"}
+    - {rol: bot, texto: "ERROR ENVIO SAP REINTENTO."}
+  pregunta: ¿La autenticación JWT es opcional?
+  contiene: [[siempre activa, no es opcional, siempre]]
+  documentos: [SEGURIDAD.md]
