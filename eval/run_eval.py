@@ -65,6 +65,10 @@ def evaluar(pregunta: dict, modelo: str, usar_historial: bool = True) -> dict:
         fila["recuperacion_ok"] = any(d in res.documentos_recuperados for d in esperados)
         fila["fuente_ok"] = any(f["documento"] in esperados for f in res.fuentes)
         fila["ok"] = (not res.sin_contexto) and _contiene(res.respuesta, pregunta.get("contiene", []))
+        if "area" in pregunta:
+            # Control entre áreas: todas las fuentes citadas deben ser del área esperada (no mezclar módulos).
+            fila["area_ok"] = all(f["area"] == pregunta["area"] for f in res.fuentes)
+            fila["ok"] = fila["ok"] and fila["area_ok"]
         fila["tipo"] = "respuesta"
         if not fila["ok"]:
             # Distinción clave: negarse sin motivo es molesto; responder mal con seguridad es peligroso.

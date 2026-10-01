@@ -15,3 +15,16 @@ areas:
       ruta: ../api-odc-mba3/docs
       patrones: ["**/*.md"]
       excluir: []
+
+  - codigo: promocion-sobres
+    nombre: Promoción Sobres (cromos)
+    descripcion: "Documentación de api-cromos (entrega de obsequios ONE CARD: consulta de cédula, validación de código, monitoreo)."
+    ejemplos:
+      - "¿Qué pasa si escaneo el código de un cliente que ya recibió su obsequio?"
+      - "¿Qué permiso necesita un supervisor para ver el monitoreo de entregas?"
+      - "¿Cómo registra la API la entrega de un obsequio?"
+    fuente:
+      tipo: carpeta
+      ruta: ../api-cromos
+      patrones: ["README.md", "docs/**/*.md"]
+      excluir: []

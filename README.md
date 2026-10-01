@@ -3,7 +3,7 @@
 Asistente de IA de SCNexus (reemplazo propio de mIA). RAG sobre documentación organizacional: responde
 **solo** con lo que dice la documentación, cita las fuentes y dice "no sé" cuando no la cubre.
 
-Estado: **nivel 2** (búsqueda híbrida, memoria de conversación con reformulación, charla natural). Primera área indexada: `odc-mba3` (docs de `api-odc-mba3`).
+Estado: **nivel 2 completo, nivel 3 (multi-fuente) en curso** (búsqueda híbrida, memoria con reformulación, charla natural). Áreas indexadas: `odc-mba3` (Python) y `promocion-sobres` (docs de `api-cromos`, .NET).
 Contrato HTTP compatible con mIA (`web-scnexus/src/services/miaApi.ts`): Cool-turito puede consumirlo sin cambios.
 
 ## Puesta en marcha (Ubuntu)

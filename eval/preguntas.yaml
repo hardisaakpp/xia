@@ -238,3 +238,85 @@
   pregunta: ¿En qué tabla se guarda la bitácora de cambios de estado de los pedidos?
   contiene: [pedido_estado_historial]
   documentos: [ESQUEMA_BD.md, CATALOGO_MIGRACIONES.md, ESTRUCTURA_BD_PEDIDOS.md]
+
+# ── Área promocion-sobres (api-cromos), documentación creada el 2026-10-01 ────────────────────────────────────
+# `area:` = todas las fuentes citadas deben ser de esa área (control entre áreas).
+- id: cromos-escaneo-duplicado
+  pregunta: ¿Qué pasa si escaneo otra vez el código correcto de un cliente que ya recibió su obsequio?
+  contiene: [[ESCANEO_DUPLICADO, ya fue validado, flujo ha finalizado, finalizó]]
+  documentos: [docs/PROMOCION_SOBRES.md, docs/MANUAL_USUARIO_PROMOCION_SOBRES.md, docs/REFERENCIA_API.md]
+  area: promocion-sobres
+
+- id: cromos-permiso-monitoreo
+  pregunta: ¿Qué permiso necesita un supervisor para ver el monitoreo de entregas?
+  contiene: [boton-monitorear.view]
+  documentos: [docs/PROMOCION_SOBRES.md, docs/REFERENCIA_API.md, docs/MANUAL_USUARIO_PROMOCION_SOBRES.md]
+  area: promocion-sobres
+
+- id: cromos-digitos-cedula
+  pregunta: ¿Cuántos dígitos debe tener la cédula para consultar un beneficiario de la promoción?
+  contiene: ["10", "13"]
+  documentos: [docs/PROMOCION_SOBRES.md, docs/REFERENCIA_API.md, docs/MANUAL_USUARIO_PROMOCION_SOBRES.md]
+  area: promocion-sobres
+
+- id: cromos-puerto-docker
+  pregunta: ¿En qué puerto queda la API de promoción sobres cuando se levanta con Docker?
+  contiene: ["8083"]
+  documentos: [docs/DESPLIEGUE_Y_CONFIGURACION.md, README.md]
+  area: promocion-sobres
+
+- id: cromos-reintento-codigo
+  pregunta: ¿Puede el cajero reintentar si el código escaneado no coincide?
+  contiene: [[CODIGO_INVALIDO, reintent, volver a escanear, vuelva a escanear]]
+  documentos: [docs/PROMOCION_SOBRES.md, docs/MANUAL_USUARIO_PROMOCION_SOBRES.md, docs/REFERENCIA_API.md]
+  area: promocion-sobres
+
+- id: cromos-cupo
+  pregunta: ¿Se descuenta el cupo disponible cuando se entrega el obsequio?
+  contiene: [[no se descuenta, informativo, no descuenta, no se valida]]
+  documentos: [docs/PROMOCION_SOBRES.md, docs/MANUAL_USUARIO_PROMOCION_SOBRES.md, docs/BASE_DE_DATOS.md]
+  area: promocion-sobres
+
+- id: cromos-tablas
+  pregunta: ¿Qué tablas usa la base de datos de la promoción de obsequios?
+  contiene: [Beneficiarios, Procesados]
+  documentos: [docs/BASE_DE_DATOS.md]
+  area: promocion-sobres
+
+- id: cromos-sin-lector
+  pregunta: ¿Qué hago en caja si el lector del código no funciona?
+  contiene: [[manualmente, código manual, ingresar código]]
+  documentos: [docs/MANUAL_USUARIO_PROMOCION_SOBRES.md]
+  area: promocion-sobres
+
+- id: cromos-devbypass
+  pregunta: ¿Qué pasa en la API de promoción sobres si ENABLE_JWT_AUTH es false?
+  contiene: [[DevBypass, modo desarrollo]]
+  documentos: [docs/DESPLIEGUE_Y_CONFIGURACION.md]
+  area: promocion-sobres
+
+- id: cromos-orden-reglas
+  pregunta: ¿Qué error devuelve la API si el beneficiario ya recibió el obsequio y se envía un código incorrecto?
+  contiene: [YA_ENTREGADO]
+  documentos: [docs/PROMOCION_SOBRES.md, docs/REFERENCIA_API.md]
+  area: promocion-sobres
+
+# Controles inversos: una pregunta de ODC no debe citar documentos de promoción sobres.
+- id: cruce-odc-permiso
+  pregunta: ¿Qué permiso necesita el perfil Producción El Rayo?
+  contiene: []
+  area: odc-mba3
+
+- id: cruce-odc-reconciliacion
+  pregunta: ¿Qué hace la reconciliación automática diaria?
+  contiene: []
+  area: odc-mba3
+
+# Lo que la documentación NO contiene: datos en vivo y el valor del código de validación.
+- id: fuera-cromos-datos-vivos
+  pregunta: ¿Cuántos obsequios se han entregado hoy?
+  sin_contexto: true
+
+- id: fuera-cromos-codigo-secreto
+  pregunta: ¿Cuál es el código de validación de la promoción ONE CARD?
+  sin_contexto: true
