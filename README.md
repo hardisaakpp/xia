@@ -60,18 +60,20 @@ Primera comparación (2026-09-30, RTX 3060 12 GB, 14 preguntas con respuesta):
 
 | Modelo | Correctas | Falsos rechazos | Respuestas incorrectas | Rechazos ok | Mediana |
 |---|---:|---:|---:|---:|---:|
-| qwen3:8b | 12 | 1 | 1 | 4/4 | 1,9 s |
+| qwen3:8b | 13 (12 antes del ajuste de recuperación) | 0 | 1 | 4/4 | 1,9 s |
 | gemma3:12b | 11 | 0 | 3 | 3/4 | 3,2 s |
 | qwen2.5:7b-instruct | 10 | 3 | 1 | 4/4 | 1,6 s |
 | mistral:latest | 6 | 5 | 3 | 4/4 | 2,1 s |
 | llama3:latest | 4 | 10 | 0 | 4/4 | 1,4 s |
+
+Los demás modelos se midieron con la recuperación anterior (13/14); con la actual, la recuperación acierta 14/14.
 
 La muestra es pequeña y la escribió quien armó el pipeline: sirve para descartar (llama3 y mistral) y para
 orientar, **no** para afirmar que qwen3 sea "el mejor". Ampliar con preguntas reales de usuarios.
 
 ## Pendiente conocido
 
-- La recuperación falla en 1 de 14 (`estado-inicial`: la pregunta está redactada muy distinto al documento). Candidatos: reranker, reformulación de la pregunta, `top_k` mayor.
+- La recuperación acierta 14/14 en el set actual, pero el set es chico. Si aparecen fallos con preguntas reales, el siguiente paso es un reranker. Corregido: la fusión RRF descartaba el mejor resultado vectorial; ahora `XIA_VECTORIALES_GARANTIZADOS` (3) lo asegura.
 - Gemma3 no rechazó "¿cuántas órdenes hay pendientes hoy?" y propuso una consulta SQL inventada: justo el caso de datos en vivo (nivel 4), que requiere herramientas con permisos, no más RAG.
 - Los permisos por área aún no existen: hoy todo usuario ve todas las áreas.
 - Solo se indexan `.md`; los PDF/XLSX de `docs/` quedan fuera. Las tablas Markdown muy largas se parten por filas.

@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     max_chars_fragmento: int = 1500
 
     top_k: int = 6
+    # De los top_k fragmentos, cuántos son siempre los mejores por similitud vectorial (el resto, por fusión híbrida).
+    vectoriales_garantizados: int = 3
     # Similitud coseno mínima del mejor fragmento para intentar responder; por debajo = sin_contexto
     # sin llamar al LLM. Es un punto de partida: calibrarlo con eval/run_eval.py.
     umbral_relevancia: float = 0.45

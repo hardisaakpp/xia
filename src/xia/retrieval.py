@@ -48,7 +48,9 @@ JOIN documentos d ON d.id = f.documento_id
 LEFT JOIN vec v ON v.id = f.id
 LEFT JOIN txt t ON t.id = f.id
 WHERE v.id IS NOT NULL OR t.id IS NOT NULL
-ORDER BY rrf DESC
+-- Los mejores resultados vectoriales entran siempre: la búsqueda por texto (OR de palabras sueltas) es ruidosa y,
+-- fusionada por RRF, puede desplazar al fragmento que el embedding ubica primero.
+ORDER BY (COALESCE(v.rk, 1000) <= %(g)s) DESC, rrf DESC
 LIMIT %(top)s
 """
 
@@ -65,6 +67,6 @@ def recuperar(pregunta: str, vector: list[float], areas: list[str]) -> list[Recu
         filas = conn.execute(
             _SQL,
             {"q": Vector(vector), "areas": areas, "tsq": _consulta_texto(pregunta),
-             "n": _CANDIDATOS, "k": _RRF_K, "top": s.top_k},
+             "n": _CANDIDATOS, "k": _RRF_K, "top": s.top_k, "g": s.vectoriales_garantizados},
         ).fetchall()
     return [Recuperado(*fila[:7]) for fila in filas]
