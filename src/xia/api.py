@@ -40,7 +40,7 @@ class Turno(BaseModel):
 
 class PreguntaIn(BaseModel):
     usuario_ad: str = Field(min_length=1, max_length=100)
-    pregunta: str = Field(min_length=3, max_length=1000)
+    pregunta: str = Field(min_length=1, max_length=1000)
     areas: list[str] | None = None
     # Conversación previa (sin incluir la pregunta actual), la más antigua primero. Opcional: sin ella, cada
     # pregunta se trata sola. Solo se usan los últimos turnos; el cliente puede mandar menos de 10.
