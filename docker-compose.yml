@@ -2,6 +2,7 @@
 services:
   db:
     image: pgvector/pgvector:pg16
+    restart: unless-stopped
     environment:
       POSTGRES_USER: xia
       POSTGRES_PASSWORD: xia # solo desarrollo; en servidor usar secreto
@@ -19,11 +20,15 @@ services:
   api:
     profiles: ["app"]
     build: .
-    # Host network: Ollama escucha solo en 127.0.0.1 y así no hay que exponerlo en la red.
-    network_mode: host
+    restart: unless-stopped # sobrevive a reinicios del equipo (mientras no se detenga a mano)
+    ports:
+      - "127.0.0.1:8900:8900"
     environment:
-      XIA_DATABASE_URL: postgresql://xia:xia@127.0.0.1:5433/xia
-      XIA_OLLAMA_URL: http://127.0.0.1:11434
+      XIA_DATABASE_URL: postgresql://xia:xia@db:5432/xia
+      # Ollama corre en el equipo (usa la GPU), no en Docker. host.docker.internal lo ofrece Docker Desktop;
+      # con Docker Engine (servidor) hay que agregar `extra_hosts: ["host.docker.internal:host-gateway"]`
+      # y hacer que Ollama escuche fuera de 127.0.0.1 (OLLAMA_HOST).
+      XIA_OLLAMA_URL: http://host.docker.internal:11434
     volumes:
       # sources.yaml resuelve las rutas relativas a su carpeta (/app): ../api-odc-mba3/docs -> /api-odc-mba3/docs
       - ../api-odc-mba3/docs:/api-odc-mba3/docs:ro

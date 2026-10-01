@@ -20,7 +20,15 @@ curl -s localhost:8900/v1/preguntar -H 'Content-Type: application/json' \
   -d '{"usuario_ad":"tu.usuario","pregunta":"¿Qué estado tiene un pedido si falla el envío a SAP?"}'
 ```
 
-Todo en Docker: `docker compose --profile app up -d` (la API usa red del host para alcanzar Ollama).
+Todo en Docker (API en `127.0.0.1:8900`, con reinicio automático tras reiniciar el equipo):
+
+```bash
+docker compose --profile app up -d --build
+```
+
+Ollama sigue corriendo en el equipo para usar la GPU; el contenedor lo alcanza por `host.docker.internal`. Tras
+cambiar código hay que reconstruir (`--build`). Este equipo usa **Docker Desktop**, que corre los contenedores en
+una VM: por eso no se usa `network_mode: host` (el "host" sería la VM y el puerto no sería visible).
 
 ## Endpoints
 
