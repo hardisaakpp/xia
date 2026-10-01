@@ -79,9 +79,27 @@ Los demás modelos se midieron con la recuperación anterior (13/14); con la act
 La muestra es pequeña y la escribió quien armó el pipeline: sirve para descartar (llama3 y mistral) y para
 orientar, **no** para afirmar que qwen3 sea "el mejor". Ampliar con preguntas reales de usuarios.
 
+## Reranker (implementado, apagado)
+
+`XIA_RERANKER=cross-encoder` reordena 20 candidatos con `BAAI/bge-reranker-v2-m3` (requiere `pip install .[rerank]` y PyTorch).
+Medido con `eval/run_retrieval.py` sobre `eval/recuperacion_dificil.yaml` (16 preguntas coloquiales, 2026-10-01):
+
+| | hit@1 | hit@6 | MRR | Latencia de búsqueda |
+|---|---:|---:|---:|---:|
+| Sin reranker | 11/16 | 15/16 | 0,792 | 125 ms |
+| Con reranker (CPU, 12 núcleos) | 13/16 | 15/16 | 0,875 | 13 200 ms |
+
+Mejora el **orden** pero no la **cobertura** (hit@6 igual), y al generador le llegan los 6 fragmentos de todos modos,
+así que el orden pesa poco; a cambio cuesta ~13 s en CPU. Por eso queda apagado. Reconsiderar si hay GPU disponible
+para el reranker (el contenedor de Docker Desktop no la tiene) o si se pasa a `top_k` menores.
+
+La falla que queda ("pruebas automáticas antes de subir cambios" → `TESTING.md`) es de **cobertura**: ese documento está en
+la posición 56 por significado, fuera de los 20 candidatos, y un reranker no puede rescatar lo que no está entre ellos.
+El siguiente paso para eso es mejorar la recuperación de candidatos (más candidatos, expansión de la pregunta), no reordenar.
+
 ## Pendiente conocido
 
-- La recuperación acierta 14/14 en el set actual, pero el set es chico. Si aparecen fallos con preguntas reales, el siguiente paso es un reranker. Corregido: la fusión RRF descartaba el mejor resultado vectorial; ahora `XIA_VECTORIALES_GARANTIZADOS` (3) lo asegura.
+- La recuperación acierta 21/21 en `eval/preguntas.yaml` (saturado) y 15/16 en el banco difícil. Corregido: la fusión RRF descartaba el mejor resultado vectorial; ahora `XIA_VECTORIALES_GARANTIZADOS` (3) lo asegura.
 - Gemma3 no rechazó "¿cuántas órdenes hay pendientes hoy?" y propuso una consulta SQL inventada: justo el caso de datos en vivo (nivel 4), que requiere herramientas con permisos, no más RAG.
 - Los permisos por área aún no existen: hoy todo usuario ve todas las áreas.
 - Solo se indexan `.md`; los PDF/XLSX de `docs/` quedan fuera. Las tablas Markdown muy largas se parten por filas.

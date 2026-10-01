@@ -1,0 +1,20 @@
+# Banco de recuperación (sin LLM): ¿llega el documento correcto entre los fragmentos? Preguntas coloquiales,
+# redactadas distinto a los documentos, para dar margen de mejora (el set de eval/preguntas.yaml ya está saturado).
+# `documentos`: cualquiera de estos cuenta como acierto. BORRADOR de Claude, verificado solo por encabezados:
+# sustituir/ampliar con preguntas reales.
+- {pregunta: "¿Por qué no me llega el correo cuando mando un pedido a El Rayo?", documentos: [NOTAS_CORREO_ENVIAR_PEDIDO.md]}
+- {pregunta: "¿Cómo hago para que una pantalla se actualice sola cuando otro usuario cambia un pedido?", documentos: [NOTIFICACIONES_SSE.md]}
+- {pregunta: "¿Cuánto tiempo se guardan en memoria los datos consultados para no ir siempre a SAP?", documentos: [CACHE.md]}
+- {pregunta: "¿Qué pasa con los cambios en la base si algo falla a la mitad de una operación de escritura?", documentos: [TRANSACCIONES.md]}
+- {pregunta: "¿Cómo se nombran las tablas y las columnas de la base de datos?", documentos: [BUENAS_PRACTICAS_SQL.md]}  # corregido: NAMING_CONVENTIONS.md es de la API REST, no de la BD
+- {pregunta: "¿Cómo aplico los cambios de estructura de la base antes de un despliegue?", documentos: [DEPLOY_MIGRATIONS.md]}
+- {pregunta: "¿Qué hay que levantar para que funcionen los procesos automáticos en segundo plano?", documentos: [CELERY_QUICKSTART.md, CELERY_IMPLEMENTATION.md]}
+- {pregunta: "Si borro un archivo de una plantilla, ¿se pierde para siempre?", documentos: [PLANTILLAS_ARCHIVOS_ELIMINACION.md]}
+- {pregunta: "¿Qué significa el error que devuelve SAP cuando el presupuesto no alcanza?", documentos: [MENSAJES_SAP.md, ESTADOS_PEDIDO.md]}
+- {pregunta: "¿Qué diferencia hay entre un permiso y una capability?", documentos: [PERMISOS_Y_CAPABILITIES.md, REVISION_ARQUITECTONICA_CAPABILITIES.md]}
+- {pregunta: "¿Cómo se relacionan dos códigos de producto que son del mismo artículo en sistemas distintos?", documentos: [HOMOLOGACIONES_SKU.md, IMPLEMENTACION_HOMOLOGACIONES_SKU.md, QUICKSTART_HOMOLOGACIONES.md]}
+- {pregunta: "¿Una persona de producción recibe avisos en tiempo real?", documentos: [NOTIFICACIONES_SSE.md]}
+- {pregunta: "¿A quién le llega el correo en desarrollo para no molestar a proveedores reales?", documentos: [NOTAS_CORREO_ENVIAR_PEDIDO.md]}
+- {pregunta: "¿Cómo se publica la API en el servidor de producción con contenedores?", documentos: [DEPLOY_DOCKER_PRODUCCION.md, DEPLOY_PRODUCCION.md]}
+- {pregunta: "¿Qué pruebas automáticas hay que correr antes de subir cambios?", documentos: [TESTING.md]}
+- {pregunta: "¿Qué pasa con el pedido si SAP rechaza el envío por un problema de conexión?", documentos: [ESTADOS_PEDIDO.md, MENSAJES_SAP.md, RESOLUCION_PEDIDO_CONGELADO_TRAS_REINTENTO_ST.md]}

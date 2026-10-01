@@ -61,12 +61,12 @@ def _consulta_texto(pregunta: str) -> str:
     return " | ".join(sorted(palabras)) or "''"
 
 
-def recuperar(pregunta: str, vector: list[float], areas: list[str]) -> list[Recuperado]:
+def recuperar(pregunta: str, vector: list[float], areas: list[str], limite: int | None = None) -> list[Recuperado]:
     s = get_settings()
     with db.pool().connection() as conn:
         filas = conn.execute(
             _SQL,
             {"q": Vector(vector), "areas": areas, "tsq": _consulta_texto(pregunta),
-             "n": _CANDIDATOS, "k": _RRF_K, "top": s.top_k, "g": s.vectoriales_garantizados},
+             "n": _CANDIDATOS, "k": _RRF_K, "top": limite or s.top_k, "g": s.vectoriales_garantizados},
         ).fetchall()
     return [Recuperado(*fila[:7]) for fila in filas]

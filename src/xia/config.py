@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     max_chars_fragmento: int = 1500
 
     top_k: int = 6
+    # Reordenamiento fino de los candidatos: "ninguno" o "cross-encoder" (requiere `pip install .[rerank]`).
+    reranker: str = "ninguno"
+    modelo_reranker: str = "BAAI/bge-reranker-v2-m3"
+    candidatos_rerank: int = 20  # cuántos candidatos recupera la búsqueda para que el reranker elija los top_k
     # De los top_k fragmentos, cuántos son siempre los mejores por similitud vectorial (el resto, por fusión híbrida).
     vectoriales_garantizados: int = 3
     # Similitud coseno mínima del mejor fragmento para intentar responder; por debajo = sin_contexto

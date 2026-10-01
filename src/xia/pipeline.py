@@ -127,6 +127,18 @@ def reformular(pregunta: str, historial: list[dict[str, str]], modelo: str) -> s
     return reescrita
 
 
+def buscar(pregunta: str, areas: list[str]) -> list[Recuperado]:
+    """Fragmentos más relevantes: búsqueda híbrida y, si está activado, reordenados por un reranker."""
+    s = get_settings()
+    vector = embeber([pregunta])[0]
+    if s.reranker == "ninguno":
+        return recuperar(pregunta, vector, areas)
+    from xia.rerank import reordenar  # import perezoso: el reranker trae dependencias pesadas y es opcional
+
+    candidatos = recuperar(pregunta, vector, areas, limite=s.candidatos_rerank)
+    return reordenar(pregunta, candidatos)[: s.top_k]
+
+
 def ejecutar(pregunta: str, areas: list[str] | None, modelo: str | None = None,
              historial: list[dict[str, str]] | None = None) -> Resultado:
     s = get_settings()
@@ -135,8 +147,7 @@ def ejecutar(pregunta: str, areas: list[str] | None, modelo: str | None = None,
 
     # Sin historial no se paga la llamada extra al modelo.
     efectiva = reformular(pregunta, historial, modelo) if historial else pregunta
-    vector = embeber([efectiva])[0]
-    fragmentos = recuperar(efectiva, vector, areas_consultadas)
+    fragmentos = buscar(efectiva, areas_consultadas)
     mejor = max((f.similitud for f in fragmentos), default=0.0)
 
     base = Resultado(MENSAJE_SIN_CONTEXTO, [], True, areas_consultadas, modelo,
