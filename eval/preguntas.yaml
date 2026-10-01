@@ -1,0 +1,95 @@
+# Set de evaluación de Xia. BORRADOR: las respuestas esperadas las verificó Claude contra los documentos de
+# api-odc-mba3 (2026-09-30); falta ampliarlo con preguntas REALES de usuarios, que es lo que más vale.
+#
+# Cada pregunta:
+#   contiene:      lista; TODOS los elementos deben aparecer en la respuesta (sin importar mayúsculas, tildes
+#                  ni '_' vs ' '). Un elemento que es lista significa "alguno de estos".
+#   documentos:    la recuperación acierta si algún documento esperado está entre los fragmentos recuperados.
+#   sin_contexto:  true = Xia debe negarse (la documentación no lo cubre).
+
+- id: estado-inicial
+  pregunta: ¿En qué estado queda un pedido cuando se sube un Excel o se crea?
+  contiene: [BORRADOR]
+  documentos: [ESTADOS_PEDIDO.md]
+
+- id: estado-reintento-sap
+  pregunta: ¿Qué estado tiene un pedido cuando falla el envío de la ODC a SAP y se puede reintentar?
+  contiene: [ERROR ENVIO SAP REINTENTO]
+  documentos: [ESTADOS_PEDIDO.md]
+
+- id: estado-final
+  pregunta: ¿Cuál es el estado final del flujo de un pedido y desde qué estado se llega a él?
+  contiene: [FINALIZADO, DESPACHAR Y FACTURAR]
+  documentos: [ESTADOS_PEDIDO.md]
+
+- id: estado-cancelado-rayo
+  pregunta: ¿Qué estado tiene un pedido que canceló El Rayo?
+  contiene: [CANCELADO POR EL RAYO]
+  documentos: [ESTADOS_PEDIDO.md]
+
+- id: estado-produccion-pospuesta
+  pregunta: ¿A qué estado pasa el pedido cuando el proveedor pospone la producción de las diferencias?
+  contiene: [PRODUCCION POSPUESTA]
+  documentos: [ESTADOS_PEDIDO.md]
+
+- id: estado-obsoleto
+  pregunta: ¿Se sigue usando el estado RECHAZADO_PROVEEDOR?
+  contiene: [[obsoleto, inactivo, no se usa, no se utiliza, no está en uso]]
+  documentos: [ESTADOS_PEDIDO.md]
+
+- id: permiso-produccion
+  pregunta: ¿Qué permiso necesita el perfil Producción El Rayo?
+  contiene: [produccion-elrayo.view]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md]
+
+- id: produccion-que-ve
+  pregunta: ¿Qué pedidos puede ver el perfil Producción El Rayo?
+  contiene: [Nuevo Pedido, Gestionar Pedido]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md]
+
+- id: permiso-panel-admin
+  pregunta: ¿Qué permiso habilita el panel Información Pedidos y ODC del dashboard?
+  contiene: [funcionalidades-admin.view]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md]
+
+- id: codigo-sap-reintento
+  pregunta: ¿Qué código de error de SAP permite reintentar el envío de una ODC?
+  contiene: ["-1116"]
+  documentos: [ESTADOS_PEDIDO.md]
+
+- id: reconciliacion
+  pregunta: ¿Qué hace la reconciliación automática diaria?
+  contiene: [traslado]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md]
+
+- id: http-202
+  pregunta: ¿Qué significa que SAP responda HTTP 202 al crear una ODC?
+  contiene: [[encola, saturado]]
+  documentos: [RESOLUCION_ODC_ENCOLADA_202.md]
+
+- id: odc-duplicada
+  pregunta: ¿Por qué se duplicó la ODC 24712 en el incidente de producción?
+  contiene: [[reintent, reenvi]]
+  documentos: [RESOLUCION_ODC_ENCOLADA_202.md]
+
+- id: jwt-opcional
+  pregunta: ¿La autenticación JWT es opcional?
+  contiene: [[siempre activa, no es opcional, siempre]]
+  documentos: [SEGURIDAD.md]
+
+# Fuera de alcance: Xia debe decir que no lo sabe, no inventar.
+- id: fuera-capital
+  pregunta: ¿Cuál es la capital de Francia?
+  sin_contexto: true
+
+- id: fuera-datos-vivos
+  pregunta: ¿Cuántas órdenes de compra hay pendientes de envío hoy?
+  sin_contexto: true
+
+- id: fuera-otro-modulo
+  pregunta: ¿Cómo registro un pago a un proveedor en tesorería?
+  sin_contexto: true
+
+- id: fuera-receta
+  pregunta: Dame una receta de ceviche de camarón.
+  sin_contexto: true

@@ -1,0 +1,89 @@
+"""API HTTP de Xia. Contrato compatible con mIA (ver web-scnexus/src/services/miaApi.ts):
+los errores se deciden por el campo `error`, no por el status."""
+from __future__ import annotations
+
+import logging
+from contextlib import asynccontextmanager
+from typing import Any
+
+import psycopg
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+
+from xia import cuota, db, servicio
+from xia.errores import XiaError
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    db.iniciar_esquema()
+    db.pool()
+    yield
+    db.cerrar_pool()
+
+
+app = FastAPI(title="Xia", version="0.1.0", lifespan=lifespan)
+
+
+class PreguntaIn(BaseModel):
+    usuario_ad: str = Field(min_length=1, max_length=100)
+    pregunta: str = Field(min_length=3, max_length=1000)
+    areas: list[str] | None = None
+
+
+@app.exception_handler(XiaError)
+async def _xia_error(_: Request, e: XiaError) -> JSONResponse:
+    headers = {"Retry-After": str(e.reintentar_en_segundos)} if e.reintentar_en_segundos is not None else None
+    return JSONResponse(e.cuerpo(), status_code=e.status, headers=headers)
+
+
+@app.exception_handler(RequestValidationError)
+async def _validacion(_: Request, e: RequestValidationError) -> JSONResponse:
+    detalles = [{"campo": ".".join(str(p) for p in err["loc"][1:]) or "cuerpo", "motivo": err["msg"]} for err in e.errors()]
+    return JSONResponse(XiaError("peticion-invalida", "La petición no es válida.", 400, detalles=detalles).cuerpo(),
+                        status_code=400)
+
+
+@app.exception_handler(psycopg.OperationalError)
+async def _bd_caida(_: Request, e: psycopg.OperationalError) -> JSONResponse:
+    logging.getLogger("xia.api").error("BD no disponible: %s", e)
+    err = XiaError("sin-indice", "La base de conocimiento no está disponible. Ya se puede reportar al equipo de TI.", 503)
+    return JSONResponse(err.cuerpo(), status_code=503)
+
+
+@app.exception_handler(Exception)
+async def _inesperado(_: Request, e: Exception) -> JSONResponse:
+    logging.getLogger("xia.api").exception("Error no controlado")
+    err = XiaError("error-interno", "Ocurrió un error inesperado en el asistente.", 500)
+    return JSONResponse(err.cuerpo(), status_code=500)
+
+
+@app.post("/v1/preguntar")
+def preguntar(cuerpo: PreguntaIn) -> dict[str, Any]:
+    # `def` (no `async`): corre en el threadpool, porque Ollama y la BD se llaman de forma bloqueante.
+    return servicio.responder(cuerpo.usuario_ad.strip(), cuerpo.pregunta.strip(), cuerpo.areas)
+
+
+@app.get("/v1/cuota")
+def obtener_cuota(usuario_ad: str) -> dict[str, Any]:
+    return cuota.consultar(usuario_ad.strip())
+
+
+@app.get("/v1/areas")
+def areas() -> dict[str, Any]:
+    with db.pool().connection() as conn:
+        filas = conn.execute(
+            "SELECT a.codigo, EXISTS (SELECT 1 FROM fragmentos f WHERE f.area = a.codigo) FROM areas a ORDER BY a.codigo"
+        ).fetchall()
+    return {"areas": [{"codigo": c, "con_documentos": d} for c, d in filas]}
+
+
+@app.get("/v1/salud")
+def salud() -> dict[str, bool]:
+    with db.pool().connection() as conn:
+        conn.execute("SELECT 1")
+    return {"ok": True}

@@ -1,0 +1,12 @@
+# Catálogo de áreas y sus fuentes. Agregar un módulo nuevo = agregar una entrada acá y reindexar
+# (`python -m xia.indexer`); no hay que tocar el código del pipeline.
+# Las rutas relativas se resuelven desde la carpeta de este archivo.
+areas:
+  - codigo: odc-mba3
+    nombre: Gestión de ODC / MBA3
+    descripcion: Documentación de api-odc-mba3 (pedidos, órdenes de compra, integración SAP).
+    fuente:
+      tipo: carpeta
+      ruta: ../api-odc-mba3/docs
+      patrones: ["**/*.md"]
+      excluir: []
