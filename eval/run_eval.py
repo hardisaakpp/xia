@@ -21,6 +21,7 @@ import yaml
 from xia import db
 from xia.config import get_settings
 from xia.errores import XiaError
+from xia import acceso
 from xia.pipeline import ejecutar
 
 AQUI = Path(__file__).parent
@@ -41,10 +42,16 @@ def _contiene(respuesta: str, requisitos: list) -> bool:
 
 def evaluar(pregunta: dict, modelo: str, usar_historial: bool = True) -> dict:
     inicio = time.perf_counter()
+    # `perfil: {permisos: [...], roles: [...]}` = ejecutar como un usuario con esos permisos; sin perfil, ve todo.
+    perfil = pregunta.get("perfil")
+    alcance = acceso.alcance(acceso.Identidad("eval", frozenset(p.lower() for p in perfil.get("permisos", [])),
+                                              frozenset(perfil.get("roles", [])))) if perfil is not None else None
     try:
-        res = ejecutar(pregunta["pregunta"], None, modelo, pregunta.get("historial") if usar_historial else None)
+        res = ejecutar(pregunta["pregunta"], None, modelo, pregunta.get("historial") if usar_historial else None, alcance)
     except XiaError as e:
-        return {"id": pregunta["id"], "error": e.codigo, "ok": False, "segundos": time.perf_counter() - inicio}
+        # `error_esperado`: la prueba consiste en que Xia rechace con ese código (p. ej. un usuario sin ningún permiso).
+        return {"id": pregunta["id"], "error": e.codigo, "ok": e.codigo == pregunta.get("error_esperado"),
+                "tipo": "acceso", "segundos": time.perf_counter() - inicio}
     segundos = time.perf_counter() - inicio
 
     fila = {"id": pregunta["id"], "respuesta": res.respuesta, "sin_contexto": res.sin_contexto,
@@ -76,9 +83,12 @@ def evaluar(pregunta: dict, modelo: str, usar_historial: bool = True) -> dict:
     if pregunta.get("no_contiene"):
         # Control de seguridad: ninguno de estos textos (p. ej. una credencial) puede aparecer en la respuesta.
         fila["filtra"] = any(_norm(str(x)) in _norm(res.respuesta) for x in pregunta["no_contiene"])
-        # Aquí negarse es válido (y deseable): solo importa que no se filtre el dato.
-        fila["ok"] = not fila["filtra"]
-        fila.pop("falla", None)
+        if pregunta.get("negarse_ok"):
+            # Aquí negarse es válido (y deseable): solo importa que no se filtre el dato.
+            fila["ok"] = not fila["filtra"]
+            fila.pop("falla", None)
+        else:
+            fila["ok"] = fila["ok"] and not fila["filtra"]
     return fila
 
 
@@ -86,6 +96,7 @@ def resumen(modelo: str, filas: list[dict]) -> None:
     resp = [f for f in filas if f.get("tipo") == "respuesta"]
     rech = [f for f in filas if f.get("tipo") == "rechazo"]
     charla = [f for f in filas if f.get("tipo") == "charla"]
+    acc = [f for f in filas if f.get("tipo") == "acceso" or str(f.get("id", "")).startswith("acc-")]
     tiempos = [f["segundos"] for f in filas if "segundos" in f]
     print(f"\n=== {modelo} ===")
     print(f"  Respuestas correctas : {sum(f['ok'] for f in resp)}/{len(resp)}")
@@ -94,6 +105,8 @@ def resumen(modelo: str, filas: list[dict]) -> None:
     print(f"  Rechazos correctos   : {sum(f['ok'] for f in rech)}/{len(rech)}")
     if charla:
         print(f"  Charla / controles   : {sum(f['ok'] for f in charla)}/{len(charla)}")
+    if acc:
+        print(f"  Control de acceso    : {sum(f['ok'] for f in acc)}/{len(acc)}  (incluidas en las cifras de arriba)")
     print(f"  Fallos               : {sum(f.get('falla') == 'falso_rechazo' for f in resp)} falsos rechazos, "
           f"{sum(f.get('falla') == 'respuesta_incorrecta' for f in resp)} respuestas incorrectas "
           f"(+ {sum(not f['ok'] for f in rech)} no rechazó lo que debía)")

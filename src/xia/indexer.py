@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import logging
 from pathlib import Path
@@ -14,7 +15,7 @@ from typing import Any
 import yaml
 from pgvector import Vector
 
-from xia import db
+from xia import acceso, db
 from xia.chunking import trocear
 from xia.config import get_settings
 from xia.llm import embeber
@@ -50,6 +51,15 @@ def _archivos(area: dict[str, Any], base: Path) -> dict[str, Path]:
     return encontrados
 
 
+def _permisos_de(area: dict[str, Any], ruta: str) -> list[str]:
+    """Permisos que habilitan un documento: la primera regla de `permisos_por_patron` que coincida con su ruta o, si
+    no hay, los del área. Sin ninguno declarado queda [] = solo administradores (denegar por defecto)."""
+    for regla in area.get("permisos_por_patron", []):
+        if fnmatch.fnmatch(ruta, regla["patron"]):
+            return list(regla["permisos"])
+    return list(area.get("permisos", []))
+
+
 def indexar_area(area: dict[str, Any], base: Path, forzar: bool = False) -> dict[str, int]:
     codigo = area["codigo"]
     resumen = {"nuevos": 0, "actualizados": 0, "sin_cambios": 0, "eliminados": 0, "fragmentos": 0}
@@ -64,13 +74,18 @@ def indexar_area(area: dict[str, Any], base: Path, forzar: bool = False) -> dict
         )
         existentes = {r[0]: (r[1], r[2]) for r in conn.execute(
             "SELECT ruta, id, hash FROM documentos WHERE area = %s", (codigo,))}
+        if not area.get("permisos") and not area.get("permisos_por_patron"):
+            log.warning("[%s] sin `permisos`: sus documentos solo los verán administradores", codigo)
 
         for ruta, path in archivos.items():
             # Se redacta ANTES de calcular la huella: si cambian las reglas de redacción, el documento se reindexa.
             contenido = redactar(path.read_text(encoding="utf-8", errors="replace"))
             huella = hashlib.sha256(contenido.encode()).hexdigest()
             previo = existentes.get(ruta)
+            permisos = _permisos_de(area, ruta)
             if previo and previo[1] == huella and not forzar:
+                # El contenido no cambió, pero los permisos sí pueden haber cambiado en sources.yaml.
+                conn.execute("UPDATE documentos SET permisos = %s WHERE id = %s", (permisos, previo[0]))
                 resumen["sin_cambios"] += 1
                 continue
 
@@ -87,8 +102,8 @@ def indexar_area(area: dict[str, Any], base: Path, forzar: bool = False) -> dict
                 else:
                     resumen["nuevos"] += 1
                 doc_id = conn.execute(
-                    "INSERT INTO documentos (area, ruta, titulo, hash) VALUES (%s, %s, %s, %s) RETURNING id",
-                    (codigo, ruta, titulo, huella),
+                    "INSERT INTO documentos (area, ruta, titulo, hash, permisos) VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                    (codigo, ruta, titulo, huella, permisos),
                 ).fetchone()[0]
                 with conn.cursor() as cur:
                     cur.executemany(

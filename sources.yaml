@@ -1,6 +1,12 @@
 # Catálogo de áreas y sus fuentes. Agregar un módulo nuevo = agregar una entrada acá y reindexar
 # (`python -m xia.indexer`); no hay que tocar el código del pipeline.
 # Las rutas relativas se resuelven desde la carpeta de este archivo.
+#
+# PERMISOS (obligatorios para que alguien distinto de un Admin vea el área):
+#   permisos: [..]            Basta UNO de ellos en el JWT de SCNexus Core (claim `permission`).
+#                             `modulo.*` = cualquier permiso que empiece por `modulo.`; `*` = cualquier usuario autenticado.
+#   permisos_por_patron: [..] Permisos por documento (primera regla cuyo `patron` coincida con la ruta); sustituye al del área.
+# Sin permisos declarados, el área solo la ve el rol Admin (denegar por defecto). Tras cambiarlos: `python -m xia.indexer`.
 areas:
   - codigo: odc-mba3
     nombre: Gestión de ODC / MBA3
@@ -10,6 +16,7 @@ areas:
       - "¿Qué estado tiene un pedido cuando falla el envío de la ODC a SAP?"
       - "¿Qué permiso necesita el perfil Producción El Rayo?"
       - "¿Qué hace la reconciliación automática diaria?"
+    permisos: [odcsap.view, produccion-elrayo.view, mabel.view]
     fuente:
       tipo: carpeta
       ruta: ../api-odc-mba3/docs
@@ -23,6 +30,7 @@ areas:
       - "¿Qué pasa si escaneo el código de un cliente que ya recibió su obsequio?"
       - "¿Qué permiso necesita un supervisor para ver el monitoreo de entregas?"
       - "¿Cómo registra la API la entrega de un obsequio?"
+    permisos: [promocion.sobres.*, boton-monitorear.view]
     fuente:
       tipo: carpeta
       ruta: ../api-cromos
@@ -39,6 +47,7 @@ areas:
       - "¿Cómo se autentica un usuario en SCNexus Core?"
       - "¿Cómo se crea un módulo nuevo que use el Core?"
       - "¿Qué endpoints tiene el Core para gestionar usuarios y permisos?"
+    permisos: [xia.tecnico]  # documentación técnica: desarrolladores (permiso a asignar en Core)
     fuente:
       tipo: carpeta
       ruta: ../api-core-scnexus
@@ -53,6 +62,7 @@ areas:
       - "¿Cómo evita el middleware crear un documento duplicado en SAP?"
       - "¿Cómo funciona la cola de trabajos del middleware?"
       - "¿Qué variables de configuración necesita el middleware?"
+    permisos: [xia.tecnico]  # documentación técnica: desarrolladores (permiso a asignar en Core)
     fuente:
       tipo: carpeta
       ruta: ../api-middleware-sap
@@ -66,6 +76,15 @@ areas:
       - "¿Cómo registro una recepción de mercadería?"
       - "¿Cómo se hace una transferencia de stock?"
       - "¿Cómo creo un usuario nuevo y le asigno permisos?"
+    # Un manual lo ve quien tiene algún permiso de ese módulo (los espacios de nombres salen de los router.ts del frontend).
+    permisos_por_patron:
+      - {patron: "MANUAL_USUARIO_MODULO_ARTICULO_SCANER.md", permisos: ["articuloscaner.*"]}
+      - {patron: "MANUAL_USUARIO_MODULO_CAJA_CHICA.md", permisos: ["cajachica.*"]}
+      - {patron: "MANUAL_USUARIO_MODULO_INTEGRACIONES.md", permisos: ["integraciones.*"]}
+      - {patron: "MANUAL_USUARIO_MODULO_INVENTARIO.md", permisos: ["inventario.*"]}
+      - {patron: "MANUAL_USUARIO_MODULO_USUARIOS.md", permisos: ["gestionusuarios.*", "staff.*"]}
+      - {patron: "MANUAL_USUARIO_RECEPCION_MERCADERIA.md", permisos: ["recepcion.*"]}
+      - {patron: "MANUAL_USUARIO_TRANSFERENCIASSTOCK_SCNEXUS.md", permisos: ["transferenciadirecta.*"]}
     fuente:
       tipo: carpeta
       ruta: ../web-scnexus/docs
@@ -80,6 +99,7 @@ areas:
       - "¿Cómo se agrega un módulo nuevo al frontend?"
       - "¿Cómo funcionan los permisos en el frontend?"
       - "¿Qué módulos tiene el portal SCNexus?"
+    permisos: [xia.tecnico]  # documentación técnica: desarrolladores (permiso a asignar en Core)
     fuente:
       tipo: carpeta
       ruta: ../web-scnexus

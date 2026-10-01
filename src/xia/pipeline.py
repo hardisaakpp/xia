@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass, field
 
 from xia import db
+from xia.acceso import Alcance
 from xia.config import get_settings
 from xia.errores import XiaError
 from xia.intencion import es_charla
@@ -89,17 +90,23 @@ class Resultado:
     intencion: str = "consulta"  # 'charla' = saludo/agradecimiento/identidad: no consulta la documentación ni gasta cuota
 
 
-def resolver_areas(solicitadas: list[str] | None) -> list[str]:
-    """Áreas que tienen documentos. Si el usuario eligió, deben existir en el catálogo."""
+def resolver_areas(solicitadas: list[str] | None, permitidas: frozenset[str] | None = None) -> list[str]:
+    """Áreas que tienen documentos y que el usuario puede ver (`permitidas=None`: todas).
+    Si el usuario eligió alguna que no puede ver, se rechaza: no se la sustituye en silencio."""
     with db.pool().connection() as conn:
         catalogo = {r[0] for r in conn.execute("SELECT codigo FROM areas")}
         con_docs = [r[0] for r in conn.execute("SELECT DISTINCT area FROM fragmentos ORDER BY area")]
+    if permitidas is not None:
+        con_docs = [a for a in con_docs if a in permitidas]
     if solicitadas:
-        desconocidas = [a for a in solicitadas if a not in catalogo]
-        if desconocidas:
-            raise XiaError("area-no-permitida", f"Área no disponible: {', '.join(desconocidas)}.", 403)
+        vedadas = [a for a in solicitadas if a not in catalogo or (permitidas is not None and a not in permitidas)]
+        if vedadas:
+            raise XiaError("area-no-permitida", f"Área no disponible: {', '.join(vedadas)}.", 403)
         con_docs = [a for a in con_docs if a in solicitadas]
     if not con_docs:
+        if permitidas is not None and not permitidas:
+            raise XiaError("sin-acceso", "Tu usuario aún no tiene acceso a ninguna documentación del asistente. "
+                                         "Solicítalo al administrador de SCNexus.", 403)
         raise XiaError("sin-areas", "No hay documentación publicada para consultar todavía.", 404)
     return con_docs
 
@@ -127,9 +134,11 @@ def mensaje_sin_contexto(codigos: list[str]) -> str:
     return f"{MENSAJE_SIN_CONTEXTO} Puedo ayudarte con: {temas}.{sugerencia}"
 
 
-def _charlar(pregunta: str, historial: list[dict[str, str]] | None, modelo: str) -> Resultado:
-    """Responde saludos, agradecimientos y preguntas sobre Xia sin consultar la documentación."""
-    catalogo = _catalogo()
+def _charlar(pregunta: str, historial: list[dict[str, str]] | None, modelo: str,
+             permitidas: frozenset[str] | None = None) -> Resultado:
+    """Responde saludos, agradecimientos y preguntas sobre Xia sin consultar la documentación.
+    Solo menciona las áreas que el usuario puede ver: el catálogo completo también es información."""
+    catalogo = _catalogo(None if permitidas is None else sorted(permitidas))
     temas = ", ".join(nombre for nombre, _ in catalogo) or "aún no hay documentación publicada"
     ejemplo = next((e[0] for _, e in catalogo if e), None)
     sistema = _SISTEMA_CHARLA.format(temas=temas, ejemplo=f' e invita a preguntar, por ejemplo: «{ejemplo}»' if ejemplo else "")
@@ -177,34 +186,36 @@ def reformular(pregunta: str, historial: list[dict[str, str]], modelo: str) -> s
     return reescrita
 
 
-def buscar(pregunta: str, areas: list[str], vector: list[float] | None = None) -> list[Recuperado]:
+def buscar(pregunta: str, areas: list[str], vector: list[float] | None = None,
+           documentos: list[int] | None = None) -> list[Recuperado]:
     """Fragmentos más relevantes: búsqueda híbrida y, si está activado, reordenados por un reranker."""
     s = get_settings()
     vector = vector or embeber([pregunta])[0]
     if s.reranker == "ninguno":
-        return recuperar(pregunta, vector, areas)
+        return recuperar(pregunta, vector, areas, documentos=documentos)
     from xia.rerank import reordenar  # import perezoso: el reranker trae dependencias pesadas y es opcional
 
-    candidatos = recuperar(pregunta, vector, areas, limite=s.candidatos_rerank)
+    candidatos = recuperar(pregunta, vector, areas, limite=s.candidatos_rerank, documentos=documentos)
     return reordenar(pregunta, candidatos)[: s.top_k]
 
 
 def ejecutar(pregunta: str, areas: list[str] | None, modelo: str | None = None,
-             historial: list[dict[str, str]] | None = None) -> Resultado:
+             historial: list[dict[str, str]] | None = None, alcance: Alcance | None = None) -> Resultado:
+    """`alcance`: qué documentación puede ver el usuario (None = toda: evaluación y modo desarrollo)."""
     s = get_settings()
     modelo = modelo or s.modelo_generacion
 
     # La charla se decide con el mensaje ORIGINAL, antes de reformular: "gracias" no debe mezclarse con el historial.
     vector = embeber([pregunta])[0]
     if es_charla(pregunta, vector, modelo):
-        return _charlar(pregunta, historial, modelo)
+        return _charlar(pregunta, historial, modelo, alcance.areas if alcance else None)
 
-    areas_consultadas = resolver_areas(areas)
+    areas_consultadas = resolver_areas(areas, alcance.areas if alcance else None)
     # Sin historial no se paga la llamada extra al modelo.
     efectiva = reformular(pregunta, historial, modelo) if historial else pregunta
     if efectiva != pregunta:
         vector = embeber([efectiva])[0]
-    fragmentos = buscar(efectiva, areas_consultadas, vector)
+    fragmentos = buscar(efectiva, areas_consultadas, vector, alcance.documentos if alcance else None)
     mejor = max((f.similitud for f in fragmentos), default=0.0)
 
     base = Resultado(mensaje_sin_contexto(areas_consultadas), [], True, areas_consultadas, modelo,

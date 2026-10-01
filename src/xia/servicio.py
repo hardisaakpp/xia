@@ -6,7 +6,7 @@ import time
 import uuid
 from typing import Any
 
-from xia import cuota, db, pipeline
+from xia import acceso, cuota, db, pipeline
 from xia.errores import XiaError
 
 log = logging.getLogger("xia.servicio")
@@ -23,8 +23,9 @@ def _auditar(traza: str, usuario_ad: str, pregunta: str, areas: list[str], *, mo
         )
 
 
-def responder(usuario_ad: str, pregunta: str, areas: list[str] | None,
+def responder(identidad: acceso.Identidad, pregunta: str, areas: list[str] | None,
               historial: list[dict[str, str]] | None = None) -> dict[str, Any]:
+    usuario_ad = identidad.usuario
     traza = str(uuid.uuid4())
     inicio = time.perf_counter()
 
@@ -38,7 +39,7 @@ def responder(usuario_ad: str, pregunta: str, areas: list[str] | None,
         raise err
 
     try:
-        r = pipeline.ejecutar(pregunta, areas, historial=historial)
+        r = pipeline.ejecutar(pregunta, areas, historial=historial, alcance=acceso.alcance(identidad))
     except XiaError as e:
         e.traza_id = traza
         _auditar(traza, usuario_ad, pregunta, areas or [], error=e.codigo)

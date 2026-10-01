@@ -145,3 +145,23 @@ Xia responde a cualquier usuario del chat y aún no filtra por permisos de área
 - En `sources.yaml` se excluyen los documentos de despliegue, infraestructura, CI/CD, mapas de red y políticas de revisión de código, y los manuales superados.
 - Si agregas una fuente nueva, revisa qué contiene antes de indexarla y añade casos `no_contiene` a `eval/preguntas.yaml`.
 - Limitación: la redacción es por patrones; no detecta un secreto escrito en prosa ("la clave es Abc123"). Las IPs de servidores no se enmascaran.
+
+## Identidad y permisos por área
+
+Xia **no confía en el cuerpo de la petición**: identifica al usuario con el JWT de SCNexus Core (`Authorization: Bearer`), validado con la misma clave, emisor y audiencia que usan `api-odc-mba3` y `api-cromos` (`XIA_JWT_*`, ver `.env.example`).
+
+| Situación | Resultado |
+|---|---|
+| Sin token, token vencido o con firma/emisor/audiencia incorrectos | 401 `no-autenticado` |
+| Token válido pero sin permisos que habiliten ninguna documentación | 403 `sin-acceso` |
+| Pide un área que no puede ver | 403 `area-no-permitida` |
+| Rol `Admin` | ve todas las áreas |
+
+- Cada **documento** guarda los permisos que lo habilitan (`documentos.permisos`), declarados en `sources.yaml` (`permisos` por área o `permisos_por_patron` por documento). Basta **uno** de ellos; `modulo.*` es un prefijo y `*` admite a cualquier usuario autenticado. **Sin permisos declarados, solo lo ve un Admin** (denegar por defecto).
+- La búsqueda filtra en SQL por los documentos permitidos: el modelo nunca recibe fragmentos que el usuario no puede leer. `/v1/areas`, el catálogo de la charla y el mensaje de "no encontré" solo nombran las áreas visibles.
+- La cuota y la auditoría usan el usuario **del token**, no `usuario_ad`.
+- Correspondencia actual: `odc-mba3` ← `odcsap.view`, `produccion-elrayo.view`, `mabel.view`; `promocion-sobres` ← `promocion.sobres.*`, `boton-monitorear.view`; `core-scnexus`, `middleware-sap`, `scnexus-frontend` ← **`xia.tecnico`**; cada manual de `scnexus-manuales` ← los permisos de su módulo (`inventario.*`, `cajachica.*`, `recepcion.*`…).
+- **Crear `xia.tecnico` en el Core:** `POST /api/Permissions` (clave `xia.tecnico`, módulo `xia`) y luego `POST /api/Permissions/assign` al rol o usuarios desarrolladores. El token trae el permiso en el siguiente login (los tokens duran 3 h).
+- Los permisos de un documento se actualizan al correr `python -m xia.indexer`; la API los lee con un caché de 30 s.
+- `XIA_AUTENTICACION=ninguna` desactiva todo esto y concede acceso total: **solo desarrollo local**. Con `jwt` y sin `XIA_JWT_SECRET`, la API no arranca.
+- Evaluación: las preguntas `acc-*` de `eval/preguntas.yaml` se ejecutan con un `perfil` de permisos y comprueban que cada área solo responde a quien corresponde (y que la charla y los rechazos no delatan áreas ocultas).

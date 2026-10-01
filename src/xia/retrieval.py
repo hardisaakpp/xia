@@ -37,12 +37,12 @@ class Recuperado:
 _SQL = """
 WITH vec AS (
     SELECT id, row_number() OVER (ORDER BY embedding <=> %(q)s) AS rk
-    FROM fragmentos WHERE area = ANY(%(areas)s)
+    FROM fragmentos WHERE area = ANY(%(areas)s) AND (%(docs)s::bigint[] IS NULL OR documento_id = ANY(%(docs)s))
     ORDER BY embedding <=> %(q)s LIMIT %(n)s
 ), txt AS (
     SELECT f.id, row_number() OVER (ORDER BY ts_rank_cd(f.tsv, query) DESC) AS rk
     FROM fragmentos f, to_tsquery('spanish', %(tsq)s) query
-    WHERE f.area = ANY(%(areas)s) AND f.tsv @@ query
+    WHERE f.area = ANY(%(areas)s) AND (%(docs)s::bigint[] IS NULL OR f.documento_id = ANY(%(docs)s)) AND f.tsv @@ query
     ORDER BY ts_rank_cd(f.tsv, query) DESC LIMIT %(n)s
 )
 SELECT f.id, f.area, d.ruta, d.titulo, f.encabezados, f.texto,
@@ -72,7 +72,7 @@ def tokens_exactos(pregunta: str) -> list[str]:
     return sorted({p.lower() for p in _PALABRA.findall(pregunta) if any(c.isdigit() or c == "_" for c in p)})
 
 
-def _fragmentos_con_identificador(conn, pregunta: str, areas: list[str]) -> list[int]:
+def _fragmentos_con_identificador(conn, pregunta: str, areas: list[str], docs: list[int] | None) -> list[int]:
     """Hasta _EXACTOS ids de fragmentos que contienen TODOS los identificadores de la pregunta; [] si no hay o si
     son tan comunes que no sirven para distinguir."""
     tokens = tokens_exactos(pregunta)
@@ -80,19 +80,22 @@ def _fragmentos_con_identificador(conn, pregunta: str, areas: list[str]) -> list
         return []
     ids = [r[0] for r in conn.execute(
         "SELECT f.id FROM fragmentos f, to_tsquery('spanish', %(q)s) query "
-        "WHERE f.area = ANY(%(areas)s) AND f.tsv @@ query ORDER BY ts_rank_cd(f.tsv, query) DESC LIMIT %(lim)s",
-        {"q": " & ".join(tokens), "areas": areas, "lim": _MAX_COINCIDENCIAS_EXACTAS + 1},
+        "WHERE f.area = ANY(%(areas)s) AND (%(docs)s::bigint[] IS NULL OR f.documento_id = ANY(%(docs)s)) "
+        "AND f.tsv @@ query ORDER BY ts_rank_cd(f.tsv, query) DESC LIMIT %(lim)s",
+        {"q": " & ".join(tokens), "areas": areas, "docs": docs, "lim": _MAX_COINCIDENCIAS_EXACTAS + 1},
     ).fetchall()]
     return ids[:_EXACTOS] if 0 < len(ids) <= _MAX_COINCIDENCIAS_EXACTAS else []
 
 
-def recuperar(pregunta: str, vector: list[float], areas: list[str], limite: int | None = None) -> list[Recuperado]:
+def recuperar(pregunta: str, vector: list[float], areas: list[str], limite: int | None = None,
+              documentos: list[int] | None = None) -> list[Recuperado]:
+    """`documentos`: ids que el usuario puede ver (None = todos). Se filtra en SQL: lo no permitido nunca sale de la BD."""
     s = get_settings()
     with db.pool().connection() as conn:
-        exactos = _fragmentos_con_identificador(conn, pregunta, areas)
+        exactos = _fragmentos_con_identificador(conn, pregunta, areas, documentos)
         filas = conn.execute(
             _SQL,
-            {"q": Vector(vector), "areas": areas, "tsq": _consulta_texto(pregunta), "ex": exactos,
+            {"q": Vector(vector), "areas": areas, "docs": documentos, "tsq": _consulta_texto(pregunta), "ex": exactos,
              "n": _CANDIDATOS, "k": _RRF_K, "top": limite or s.top_k, "g": s.vectoriales_garantizados},
         ).fetchall()
     return [Recuperado(*fila[:7]) for fila in filas]

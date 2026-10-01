@@ -7,12 +7,12 @@ from contextlib import asynccontextmanager
 from typing import Any, Literal
 
 import psycopg
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from xia import cuota, db, intencion, servicio
+from xia import acceso, cuota, db, intencion, servicio
 from xia.errores import XiaError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
@@ -20,6 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    acceso.validar_configuracion()
     db.iniciar_esquema()
     db.pool()
     try:
@@ -39,7 +40,8 @@ class Turno(BaseModel):
 
 
 class PreguntaIn(BaseModel):
-    usuario_ad: str = Field(min_length=1, max_length=100)
+    # Solo se usa con XIA_AUTENTICACION=ninguna (desarrollo). Con JWT, el usuario sale del token: este campo se ignora.
+    usuario_ad: str | None = Field(default=None, max_length=100)
     pregunta: str = Field(min_length=1, max_length=1000)
     areas: list[str] | None = None
     # Conversación previa (sin incluir la pregunta actual), la más antigua primero. Opcional: sin ella, cada
@@ -75,24 +77,27 @@ async def _inesperado(_: Request, e: Exception) -> JSONResponse:
 
 
 @app.post("/v1/preguntar")
-def preguntar(cuerpo: PreguntaIn) -> dict[str, Any]:
+def preguntar(cuerpo: PreguntaIn, authorization: str | None = Header(default=None)) -> dict[str, Any]:
     # `def` (no `async`): corre en el threadpool, porque Ollama y la BD se llaman de forma bloqueante.
     historial = [t.model_dump() for t in cuerpo.historial] if cuerpo.historial else None
-    return servicio.responder(cuerpo.usuario_ad.strip(), cuerpo.pregunta.strip(), cuerpo.areas, historial)
+    identidad = acceso.identificar(authorization, cuerpo.usuario_ad)
+    return servicio.responder(identidad, cuerpo.pregunta.strip(), cuerpo.areas, historial)
 
 
 @app.get("/v1/cuota")
-def obtener_cuota(usuario_ad: str) -> dict[str, Any]:
-    return cuota.consultar(usuario_ad.strip())
+def obtener_cuota(usuario_ad: str | None = None, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    return cuota.consultar(acceso.identificar(authorization, usuario_ad).usuario)
 
 
 @app.get("/v1/areas")
-def areas() -> dict[str, Any]:
+def areas(usuario_ad: str | None = None, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    """Solo las áreas que el usuario puede ver."""
+    visibles = acceso.alcance(acceso.identificar(authorization, usuario_ad)).areas
     with db.pool().connection() as conn:
         filas = conn.execute(
             "SELECT a.codigo, EXISTS (SELECT 1 FROM fragmentos f WHERE f.area = a.codigo) FROM areas a ORDER BY a.codigo"
         ).fetchall()
-    return {"areas": [{"codigo": c, "con_documentos": d} for c, d in filas]}
+    return {"areas": [{"codigo": c, "con_documentos": d} for c, d in filas if c in visibles]}
 
 
 @app.get("/v1/salud")

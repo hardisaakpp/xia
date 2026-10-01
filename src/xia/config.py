@@ -38,6 +38,15 @@ class Settings(BaseSettings):
     # sin llamar al LLM. Es un punto de partida: calibrarlo con eval/run_eval.py.
     umbral_relevancia: float = 0.45
 
+    # Identidad y permisos. "jwt" = el token de SCNexus Core en `Authorization: Bearer` (misma clave, emisor y audiencia
+    # que usan api-odc-mba3 y api-cromos); "ninguna" = SOLO desarrollo: confía en `usuario_ad` y concede todo.
+    autenticacion: str = "jwt"
+    jwt_secret: str = ""
+    jwt_issuer: str = ""
+    jwt_audience: str = ""
+    roles_admin: list[str] = ["Admin"]  # ven todas las áreas
+    permiso_tecnico: str = "xia.tecnico"
+
     cuota_limite: int = 30
     cuota_ventana_horas: int = 3
 

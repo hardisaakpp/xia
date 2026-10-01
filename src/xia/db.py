@@ -55,6 +55,9 @@ CREATE TABLE IF NOT EXISTS consultas (
 ALTER TABLE consultas ADD COLUMN IF NOT EXISTS pregunta_reformulada text;
 ALTER TABLE consultas ADD COLUMN IF NOT EXISTS intencion text;  -- 'consulta' | 'charla'; la charla no consume cuota
 ALTER TABLE areas ADD COLUMN IF NOT EXISTS ejemplos text[];     -- preguntas de ejemplo para sugerir al usuario
+-- Permisos que habilitan cada documento (alguno basta; `modulo.*` = prefijo; `*` = cualquier usuario autenticado).
+-- Vacío = solo administradores: sin permiso declarado, un documento no se muestra a nadie más.
+ALTER TABLE documentos ADD COLUMN IF NOT EXISTS permisos text[] NOT NULL DEFAULT '{{}}';
 CREATE INDEX IF NOT EXISTS consultas_usuario_idx ON consultas (usuario_ad, creada);
 """
 
