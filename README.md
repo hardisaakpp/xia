@@ -3,7 +3,7 @@
 Asistente de IA de SCNexus (reemplazo propio de mIA). RAG sobre documentación organizacional: responde
 **solo** con lo que dice la documentación, cita las fuentes y dice "no sé" cuando no la cubre.
 
-Estado: **nivel 1** (RAG con búsqueda híbrida). Primera área indexada: `odc-mba3` (docs de `api-odc-mba3`).
+Estado: **nivel 2** (búsqueda híbrida, memoria de conversación con reformulación, charla natural). Primera área indexada: `odc-mba3` (docs de `api-odc-mba3`).
 Contrato HTTP compatible con mIA (`web-scnexus/src/services/miaApi.ts`): Cool-turito puede consumirlo sin cambios.
 
 ## Puesta en marcha (Ubuntu)
@@ -79,6 +79,23 @@ Los demás modelos se midieron con la recuperación anterior (13/14); con la act
 La muestra es pequeña y la escribió quien armó el pipeline: sirve para descartar (llama3 y mistral) y para
 orientar, **no** para afirmar que qwen3 sea "el mejor". Ampliar con preguntas reales de usuarios.
 
+## Mantener la documentación al día
+
+Xia solo sabe lo que dicen los documentos indexados (`sources.yaml`), así que **la documentación desactualizada produce
+respuestas desactualizadas**. Tres de los documentos de `api-odc-mba3/docs` se generan desde la fuente de verdad:
+
+```bash
+cd ../api-odc-mba3
+python scripts/generar_referencia_api.py          # docs/REFERENCIA_API.md  (desde el OpenAPI del servicio en :8000)
+python scripts/generar_catalogo_migraciones.py    # docs/CATALOGO_MIGRACIONES.md  (desde migrations_manifest.yaml)
+docker exec -i mba3-api python - < scripts/generar_esquema_bd.py > docs/ESQUEMA_BD.md   # tablas y columnas de la BD real
+cd ../xia && .venv/bin/python -m xia.indexer      # reindexa solo lo que cambió
+```
+
+El **manual de usuario** (`docs/Manual_del_usuario/*.md`) se mantiene a mano y es la fuente de las respuestas de tipo
+"¿cómo hago…?": al cambiar una pantalla, actualizarlo y reindexar. Última revisión: 01/10/2026, contrastada con el
+código del frontend. Tras reindexar conviene correr `eval/run_eval.py` para detectar respuestas que dejaron de salir bien.
+
 ## Charla y negativas
 
 Antes de buscar en la documentación, `src/xia/intencion.py` detecta **charla** (saludos, gracias, despedidas, "¿quién
@@ -114,7 +131,8 @@ El siguiente paso para eso es mejorar la recuperación de candidatos (más candi
 
 ## Pendiente conocido
 
-- La recuperación acierta 21/21 en `eval/preguntas.yaml` (saturado) y 15/16 en el banco difícil. Corregido: la fusión RRF descartaba el mejor resultado vectorial; ahora `XIA_VECTORIALES_GARANTIZADOS` (3) lo asegura.
+- Con identificadores (números de migración, códigos) la búsqueda por texto sola fallaba: ahora se garantizan hasta 2 fragmentos que contengan el identificador exacto (`tokens_exactos`).
+- La recuperación acierta 33/35 en `eval/preguntas.yaml` (respuestas 35/35) y 15/16 en el banco difícil, aunque en este último el orden empeoró al crecer el corpus (hit@1 8/16, antes 11/16): hay más documentos legítimos compitiendo por el primer lugar. Corregido: Corregido: la fusión RRF descartaba el mejor resultado vectorial; ahora `XIA_VECTORIALES_GARANTIZADOS` (3) lo asegura.
 - Gemma3 no rechazó "¿cuántas órdenes hay pendientes hoy?" y propuso una consulta SQL inventada: justo el caso de datos en vivo (nivel 4), que requiere herramientas con permisos, no más RAG.
 - Los permisos por área aún no existen: hoy todo usuario ve todas las áreas.
 - Solo se indexan `.md`; los PDF/XLSX de `docs/` quedan fuera. Las tablas Markdown muy largas se parten por filas.

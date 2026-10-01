@@ -187,3 +187,54 @@
 - {id: charla-ctrl-corta-1, pregunta: ayuda con SAP, charla: false}
 - {id: charla-ctrl-corta-2, pregunta: pedidos, charla: false}
 - {id: charla-ctrl-corta-3, pregunta: estados del pedido, charla: false}
+
+# ── Documentación actualizada el 2026-10-01 (manual, REFERENCIA_API, ESQUEMA_BD, CATALOGO_MIGRACIONES).
+# Respuestas verificadas contra el código del frontend, el OpenAPI en ejecución y la base de datos real.
+- id: doc-requiere-accion-redistribucion
+  pregunta: ¿Qué pedidos cuenta el botón "requieren acción" en Redistribución?
+  contiene: [Confirmado por El Rayo, Listo para Redistribución]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md]
+- id: doc-confirmar-deshabilitado
+  pregunta: ¿Por qué no puedo usar el botón Confirmar como El Rayo?
+  contiene: [fecha de entrega]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md]
+- id: doc-fecha-facturacion
+  pregunta: ¿Cuándo se puede elegir la fecha de facturación de un pedido?
+  contiene: [Confirmado y Enviado]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md, CATALOGO_MIGRACIONES.md]
+- id: doc-destinatarios-asignar
+  pregunta: ¿Cómo le asigno un correo a una persona en Destinatarios de Notificaciones?
+  contiene: [[arrastr, toca]]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md]
+- id: doc-color-produccion
+  pregunta: ¿De qué color se resaltan las celdas que editó Producción El Rayo?
+  contiene: [naranja]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md, CATALOGO_MIGRACIONES.md]
+- id: doc-estado-nombre-antiguo
+  pregunta: ¿Se sigue usando el estado Pendiente Confirmación?
+  contiene: [Borrador]   # es el nombre antiguo del estado 1, no un estado retirado
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md, ESTADOS_PEDIDO.md]
+- id: doc-estado-retirado
+  pregunta: ¿Se sigue usando el estado Confirmado Proveedor?
+  contiene: [[retirad, ya no se usa, ya no forma parte, ya no se utiliza, obsoleto, inactivo, no se usa, no se utiliza]]
+  documentos: [Manual_del_usuario/Manual de Usuario - Modulo Gestión ODC SAP - SCNexus.md, ESTADOS_PEDIDO.md]
+- id: api-permiso-integrar-sap
+  pregunta: ¿Qué permiso exige el endpoint POST /integrar-sap?
+  contiene: [mabel.view]
+  documentos: [REFERENCIA_API.md]
+- id: api-filtro-reintento
+  pregunta: ¿Qué parámetro del listado de órdenes de compra muestra solo las que tienen un reintento pendiente?
+  contiene: [solo_pendiente_reintento]
+  documentos: [REFERENCIA_API.md]
+- id: bd-columna-tienda-agregada
+  pregunta: ¿Qué columna marca las tiendas agregadas manualmente en la redistribución?
+  contiene: [agregada_manualmente]
+  documentos: [ESQUEMA_BD.md, ESTRUCTURA_BD_PEDIDOS.md, CATALOGO_MIGRACIONES.md]
+- id: bd-migracion-665
+  pregunta: ¿Qué hace la migración 665?
+  contiene: [[100, nvarchar]]
+  documentos: [CATALOGO_MIGRACIONES.md]
+- id: bd-bitacora-estados
+  pregunta: ¿En qué tabla se guarda la bitácora de cambios de estado de los pedidos?
+  contiene: [pedido_estado_historial]
+  documentos: [ESQUEMA_BD.md, CATALOGO_MIGRACIONES.md, ESTRUCTURA_BD_PEDIDOS.md]

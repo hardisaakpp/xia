@@ -16,6 +16,11 @@ from xia.config import get_settings
 _PALABRA = re.compile(r"\w+", re.UNICODE)
 _CANDIDATOS = 30
 _RRF_K = 60
+# Identificadores (números de migración, códigos, nombres como `estado_id`) que, si aparecen en pocos fragmentos, son
+# la mejor pista que hay: se garantizan hasta _EXACTOS fragmentos que los contengan. Si aparecen en muchos (un año,
+# "2026"), no discriminan y se ignoran.
+_EXACTOS = 2
+_MAX_COINCIDENCIAS_EXACTAS = 15
 
 
 @dataclass(frozen=True)
@@ -47,10 +52,11 @@ FROM fragmentos f
 JOIN documentos d ON d.id = f.documento_id
 LEFT JOIN vec v ON v.id = f.id
 LEFT JOIN txt t ON t.id = f.id
-WHERE v.id IS NOT NULL OR t.id IS NOT NULL
--- Los mejores resultados vectoriales entran siempre: la búsqueda por texto (OR de palabras sueltas) es ruidosa y,
--- fusionada por RRF, puede desplazar al fragmento que el embedding ubica primero.
-ORDER BY (COALESCE(v.rk, 1000) <= %(g)s) DESC, rrf DESC
+WHERE v.id IS NOT NULL OR t.id IS NOT NULL OR f.id = ANY(%(ex)s)
+-- Entran siempre: (1) los fragmentos con el identificador exacto de la pregunta y (2) los mejores resultados vectoriales.
+-- La búsqueda por texto (OR de palabras sueltas) es ruidosa y, fusionada por RRF, desplaza al fragmento que el
+-- embedding o el identificador señalan.
+ORDER BY (f.id = ANY(%(ex)s)) DESC, (COALESCE(v.rk, 1000) <= %(g)s) DESC, rrf DESC
 LIMIT %(top)s
 """
 
@@ -61,12 +67,32 @@ def _consulta_texto(pregunta: str) -> str:
     return " | ".join(sorted(palabras)) or "''"
 
 
+def tokens_exactos(pregunta: str) -> list[str]:
+    """Palabras que parecen identificadores: llevan un dígito o un guion bajo (665, estado_id, 24712, p12)."""
+    return sorted({p.lower() for p in _PALABRA.findall(pregunta) if any(c.isdigit() or c == "_" for c in p)})
+
+
+def _fragmentos_con_identificador(conn, pregunta: str, areas: list[str]) -> list[int]:
+    """Hasta _EXACTOS ids de fragmentos que contienen TODOS los identificadores de la pregunta; [] si no hay o si
+    son tan comunes que no sirven para distinguir."""
+    tokens = tokens_exactos(pregunta)
+    if not tokens:
+        return []
+    ids = [r[0] for r in conn.execute(
+        "SELECT f.id FROM fragmentos f, to_tsquery('spanish', %(q)s) query "
+        "WHERE f.area = ANY(%(areas)s) AND f.tsv @@ query ORDER BY ts_rank_cd(f.tsv, query) DESC LIMIT %(lim)s",
+        {"q": " & ".join(tokens), "areas": areas, "lim": _MAX_COINCIDENCIAS_EXACTAS + 1},
+    ).fetchall()]
+    return ids[:_EXACTOS] if 0 < len(ids) <= _MAX_COINCIDENCIAS_EXACTAS else []
+
+
 def recuperar(pregunta: str, vector: list[float], areas: list[str], limite: int | None = None) -> list[Recuperado]:
     s = get_settings()
     with db.pool().connection() as conn:
+        exactos = _fragmentos_con_identificador(conn, pregunta, areas)
         filas = conn.execute(
             _SQL,
-            {"q": Vector(vector), "areas": areas, "tsq": _consulta_texto(pregunta),
+            {"q": Vector(vector), "areas": areas, "tsq": _consulta_texto(pregunta), "ex": exactos,
              "n": _CANDIDATOS, "k": _RRF_K, "top": limite or s.top_k, "g": s.vectoriales_garantizados},
         ).fetchall()
     return [Recuperado(*fila[:7]) for fila in filas]
