@@ -1,0 +1,54 @@
+# Xia como SERVIDOR en Docker Engine nativo (arranca con el sistema, sin sesión gráfica).
+#
+#   docker --context default compose -f docker-compose.servidor.yml up -d --build
+#
+# Diferencias con docker-compose.yml (desarrollo con Docker Desktop):
+#  - La API usa la red del equipo (`network_mode: host`): llega a Ollama en 127.0.0.1 sin exponerlo a la red, y publica
+#    su puerto directamente. Quién puede conectarse lo decide el firewall (ver deploy/sudo/preparar-servidor.sh).
+#  - Contraseña de la base desde .env (XIA_DB_PASSWORD, obligatoria); nada de claves por defecto.
+#  - Esto NO funciona en Docker Desktop (corre en una máquina virtual): allí usa docker-compose.yml.
+name: xia
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: xia
+      POSTGRES_PASSWORD: ${XIA_DB_PASSWORD:?Define XIA_DB_PASSWORD en .env (solo letras y números, p. ej. openssl rand -hex 16)}
+      POSTGRES_DB: xia
+    ports:
+      - "127.0.0.1:5433:5432" # solo local: el indexador y los respaldos entran por aquí
+    volumes:
+      - xia-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xia -d xia"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    network_mode: host
+    command: ["uvicorn", "xia.api:app", "--host", "${XIA_BIND_HOST:-0.0.0.0}", "--port", "8900"]
+    environment:
+      XIA_DATABASE_URL: postgresql://xia:${XIA_DB_PASSWORD}@127.0.0.1:5433/xia
+      XIA_OLLAMA_URL: http://127.0.0.1:11434
+      XIA_AUTENTICACION: ${XIA_AUTENTICACION:-jwt}
+      XIA_JWT_SECRET: ${XIA_JWT_SECRET:?Define XIA_JWT_SECRET (la clave Jwt:Key del Core de producción)}
+      XIA_JWT_ISSUER: ${XIA_JWT_ISSUER:-}
+      XIA_JWT_AUDIENCE: ${XIA_JWT_AUDIENCE:-}
+      XIA_OLLAMA_KEEP_ALIVE: ${XIA_OLLAMA_KEEP_ALIVE:-24h}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8900/v1/salud', timeout=4)"]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  xia-db:

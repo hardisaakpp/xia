@@ -35,7 +35,7 @@ def embeber(textos: list[str]) -> list[list[float]]:
     s = get_settings()
     vectores: list[list[float]] = []
     for i in range(0, len(textos), 16):
-        data = _post("/api/embed", {"model": s.modelo_embeddings, "input": textos[i : i + 16], "keep_alive": "30m"})
+        data = _post("/api/embed", {"model": s.modelo_embeddings, "input": textos[i : i + 16], "keep_alive": s.ollama_keep_alive})
         vectores.extend(data["embeddings"])
     return vectores
 
@@ -53,7 +53,7 @@ def generar(mensajes: list[dict[str, str]], modelo: str | None = None, temperatu
                 "messages": mensajes,
                 "stream": False,
                 "think": s.pensar,
-                "keep_alive": "30m",
+                "keep_alive": s.ollama_keep_alive,
                 "options": {"temperature": temperatura, "num_ctx": s.ollama_num_ctx},
             },
         )

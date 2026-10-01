@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # Modelos con modo "pensar" (qwen3, ...): apagado por defecto, multiplica la latencia en consultas con contexto.
     pensar: bool = False
     timeout_llm_s: float = 120.0
+    # Cuánto mantiene Ollama los modelos en VRAM tras la última llamada. Como servidor, conviene largo: recargarlos
+    # tras un rato sin uso suma varios segundos a la primera pregunta.
+    ollama_keep_alive: str = "30m"
 
     sources_file: str = "sources.yaml"
     max_chars_fragmento: int = 1500

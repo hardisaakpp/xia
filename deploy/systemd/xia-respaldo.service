@@ -1,0 +1,6 @@
+[Unit]
+Description=Respaldo de la base de Xia
+
+[Service]
+Type=oneshot
+ExecStart=@XIA_DIR@/deploy/respaldo.sh

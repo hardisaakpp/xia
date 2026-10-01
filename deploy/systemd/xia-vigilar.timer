@@ -1,0 +1,9 @@
+[Unit]
+Description=Vigilancia periódica de Xia
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+
+[Install]
+WantedBy=timers.target

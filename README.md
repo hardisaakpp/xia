@@ -138,6 +138,10 @@ El siguiente paso para eso es mejorar la recuperación de candidatos (más candi
 - Solo se indexan `.md`; los PDF/XLSX de `docs/` quedan fuera. Las tablas Markdown muy largas se parten por filas.
 - La cuota y la auditoría no tienen autenticación: `usuario_ad` lo envía el cliente (igual que mIA hoy).
 
+## Despliegue como servidor
+
+Ver [docs/DESPLIEGUE_SERVIDOR.md](docs/DESPLIEGUE_SERVIDOR.md): Docker Engine nativo, arranque con el sistema, respaldos, vigilancia y verificación (`deploy/`).
+
 ## Seguridad al indexar
 
 Xia responde a cualquier usuario del chat y aún no filtra por permisos de área: **lo que se indexa se puede preguntar**.

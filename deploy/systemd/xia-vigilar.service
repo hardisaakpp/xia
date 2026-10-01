@@ -1,0 +1,6 @@
+[Unit]
+Description=Vigilancia de Xia (API y Ollama)
+
+[Service]
+Type=oneshot
+ExecStart=@XIA_DIR@/deploy/vigilar.sh

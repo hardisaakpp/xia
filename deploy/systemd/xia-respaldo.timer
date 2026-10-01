@@ -1,0 +1,11 @@
+[Unit]
+Description=Respaldo diario de la base de Xia
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=10min
+# Si el equipo estaba apagado a esa hora, se hace al encender.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
