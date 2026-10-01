@@ -18,6 +18,7 @@ from xia import db
 from xia.chunking import trocear
 from xia.config import get_settings
 from xia.llm import embeber
+from xia.redaccion import redactar
 
 log = logging.getLogger("xia.indexer")
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -65,7 +66,8 @@ def indexar_area(area: dict[str, Any], base: Path, forzar: bool = False) -> dict
             "SELECT ruta, id, hash FROM documentos WHERE area = %s", (codigo,))}
 
         for ruta, path in archivos.items():
-            contenido = path.read_text(encoding="utf-8", errors="replace")
+            # Se redacta ANTES de calcular la huella: si cambian las reglas de redacción, el documento se reindexa.
+            contenido = redactar(path.read_text(encoding="utf-8", errors="replace"))
             huella = hashlib.sha256(contenido.encode()).hexdigest()
             previo = existentes.get(ruta)
             if previo and previo[1] == huella and not forzar:

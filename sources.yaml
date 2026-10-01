@@ -28,3 +28,61 @@ areas:
       ruta: ../api-cromos
       patrones: ["README.md", "docs/**/*.md"]
       excluir: []
+
+  # ── Áreas técnicas del ecosistema SCNexus ──────────────────────────────────────────────────────────────────
+  # Criterio: se indexa documentación funcional y técnica; se EXCLUYEN despliegue, infraestructura, CI/CD, políticas de
+  # revisión de código y documentos históricos. Los secretos que aún aparezcan se enmascaran en xia.redaccion.
+  - codigo: core-scnexus
+    nombre: SCNexus Core (autenticación y permisos)
+    descripcion: "Documentación de api-core-scnexus (login, Active Directory, usuarios, roles y permisos, JWT, endpoints)."
+    ejemplos:
+      - "¿Cómo se autentica un usuario en SCNexus Core?"
+      - "¿Cómo se crea un módulo nuevo que use el Core?"
+      - "¿Qué endpoints tiene el Core para gestionar usuarios y permisos?"
+    fuente:
+      tipo: carpeta
+      ruta: ../api-core-scnexus
+      patrones: ["README.md", "docs/**/*.md"]
+      excluir: ["docs/Diagrama.md", "docs/DEPLOY.md", "docs/AUTO-DEPLOY.md", "docs/BINARY-DEPLOY.md", "docs/CICD.md",
+                "docs/sonarqube-review-policy.md"]
+
+  - codigo: middleware-sap
+    nombre: Middleware SAP
+    descripcion: "Documentación de api-middleware-sap (integración con SAP Business One: contrato, idempotencia, concurrencia, cola de trabajos)."
+    ejemplos:
+      - "¿Cómo evita el middleware crear un documento duplicado en SAP?"
+      - "¿Cómo funciona la cola de trabajos del middleware?"
+      - "¿Qué variables de configuración necesita el middleware?"
+    fuente:
+      tipo: carpeta
+      ruta: ../api-middleware-sap
+      patrones: ["README.md", "docs/**/*.md"]
+      excluir: ["docs/sonarqube-review-policy.md"]
+
+  - codigo: scnexus-manuales
+    nombre: Manuales de usuario de SCNexus
+    descripcion: "Manuales de usuario de los módulos del portal SCNexus (inventario, caja chica, transferencias, recepción, usuarios, integraciones, artículos)."
+    ejemplos:
+      - "¿Cómo registro una recepción de mercadería?"
+      - "¿Cómo se hace una transferencia de stock?"
+      - "¿Cómo creo un usuario nuevo y le asigno permisos?"
+    fuente:
+      tipo: carpeta
+      ruta: ../web-scnexus/docs
+      patrones: ["MANUAL_USUARIO_*.md"]
+      # El manual MBA3 de febrero está superado: el vigente es el de api-odc-mba3 (área odc-mba3).
+      excluir: ["MANUAL_USUARIO_MBA3.md"]
+
+  - codigo: scnexus-frontend
+    nombre: Frontend de SCNexus (arquitectura)
+    descripcion: "Documentación técnica del frontend web-scnexus (arquitectura, módulos, permisos, convenciones)."
+    ejemplos:
+      - "¿Cómo se agrega un módulo nuevo al frontend?"
+      - "¿Cómo funcionan los permisos en el frontend?"
+      - "¿Qué módulos tiene el portal SCNexus?"
+    fuente:
+      tipo: carpeta
+      ruta: ../web-scnexus
+      patrones: ["README.md", "docs/FRONTEND.md", "docs/ARQUITECTURA_Y_NUEVOS_MODULOS.md", "docs/MODULOS.md",
+                 "docs/SISTEMA_PERMISOS.md", "docs/FUNCIONALIDADES_ESTANDARIZADAS.md", "docs/MODULO_INTEGRACIONES.md"]
+      excluir: []

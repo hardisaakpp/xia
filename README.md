@@ -3,7 +3,7 @@
 Asistente de IA de SCNexus (reemplazo propio de mIA). RAG sobre documentación organizacional: responde
 **solo** con lo que dice la documentación, cita las fuentes y dice "no sé" cuando no la cubre.
 
-Estado: **nivel 2 completo, nivel 3 (multi-fuente) en curso** (búsqueda híbrida, memoria con reformulación, charla natural). Áreas indexadas: `odc-mba3` (Python) y `promocion-sobres` (docs de `api-cromos`, .NET).
+Estado: **nivel 2 completo, nivel 3 (multi-fuente) en curso** (búsqueda híbrida, memoria con reformulación, charla natural). Áreas: `odc-mba3`, `promocion-sobres`, `core-scnexus`, `middleware-sap`, `scnexus-manuales`, `scnexus-frontend`.
 Contrato HTTP compatible con mIA (`web-scnexus/src/services/miaApi.ts`): Cool-turito puede consumirlo sin cambios.
 
 ## Puesta en marcha (Ubuntu)
@@ -137,3 +137,11 @@ El siguiente paso para eso es mejorar la recuperación de candidatos (más candi
 - Los permisos por área aún no existen: hoy todo usuario ve todas las áreas.
 - Solo se indexan `.md`; los PDF/XLSX de `docs/` quedan fuera. Las tablas Markdown muy largas se parten por filas.
 - La cuota y la auditoría no tienen autenticación: `usuario_ad` lo envía el cliente (igual que mIA hoy).
+
+## Seguridad al indexar
+
+Xia responde a cualquier usuario del chat y aún no filtra por permisos de área: **lo que se indexa se puede preguntar**.
+- `src/xia/redaccion.py` enmascara el valor de contraseñas, secretos, claves de API y tokens JWT (formatos `clave = "valor"`, `CLAVE=valor`, cadenas de conexión y Markdown `**Password:** \`valor\``) antes de trocear y de calcular embeddings. Se conserva la clave: "la contraseña va en `password`" sigue siendo documentación válida.
+- En `sources.yaml` se excluyen los documentos de despliegue, infraestructura, CI/CD, mapas de red y políticas de revisión de código, y los manuales superados.
+- Si agregas una fuente nueva, revisa qué contiene antes de indexarla y añade casos `no_contiene` a `eval/preguntas.yaml`.
+- Limitación: la redacción es por patrones; no detecta un secreto escrito en prosa ("la clave es Abc123"). Las IPs de servidores no se enmascaran.
