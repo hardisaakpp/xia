@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     roles_admin: list[str] = ["Admin"]  # ven todas las áreas
     permiso_tecnico: str = "xia.tecnico"
 
+    # Agente (herramientas): cuánto de la conversación y de cada resultado de herramienta se entrega al modelo. El contexto
+    # es corto a propósito: cambiarlo recarga el modelo en la GPU y encarece la primera respuesta.
+    agente_max_mensajes: int = 14
+    agente_max_chars_herramienta: int = 4000
+
     cuota_limite: int = 30
     cuota_ventana_horas: int = 3
 

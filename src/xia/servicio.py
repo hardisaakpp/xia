@@ -6,7 +6,7 @@ import time
 import uuid
 from typing import Any
 
-from xia import acceso, cuota, db, pipeline
+from xia import acceso, agente, cuota, db, pipeline
 from xia.errores import XiaError
 
 log = logging.getLogger("xia.servicio")
@@ -62,3 +62,47 @@ def responder(identidad: acceso.Identidad, pregunta: str, areas: list[str] | Non
         "traza_id": traza,
         "cuota": cuota.consultar(usuario_ad),
     }
+
+
+def responder_agente(identidad: acceso.Identidad, mensajes: list[dict[str, Any]], herramientas: list[dict[str, Any]],
+                     instrucciones: str | None, idioma: str = "es") -> dict[str, Any]:
+    """Un paso del agente. Si el modelo necesita herramientas devuelve `llamadas` (la aplicación las ejecuta y vuelve a
+    llamar con los resultados); si no, la respuesta final. Una pregunta cuenta UNA vez en la cuota: el paso que sigue a
+    un resultado de herramienta es una continuación y no gasta ni exige cuota."""
+    usuario_ad = identidad.usuario
+    traza = str(uuid.uuid4())
+    inicio = time.perf_counter()
+    continuacion = mensajes[-1]["rol"] == "tool"
+    intencion = "continuacion" if continuacion else "agente"
+    pregunta = next((m["texto"] for m in reversed(mensajes) if m["rol"] == "user"), "")
+
+    if not continuacion:
+        estado = cuota.consultar(usuario_ad)
+        if estado["restantes"] <= 0:
+            err = XiaError("cuota-agotada",
+                           "Alcanzaste tu límite de consultas por ahora. Se renueva automáticamente en unas horas.",
+                           429, cuota=estado)
+            err.traza_id = traza
+            _auditar(traza, usuario_ad, pregunta, [], error=err.codigo, intencion=intencion)
+            raise err
+
+    try:
+        r = agente.ejecutar(identidad, mensajes, herramientas, instrucciones, idioma)
+    except XiaError as e:
+        e.traza_id = traza
+        _auditar(traza, usuario_ad, pregunta, [], error=e.codigo, intencion=intencion)
+        raise
+
+    ms = int((time.perf_counter() - inicio) * 1000)
+    _auditar(traza, usuario_ad, pregunta, r.areas, modelo=r.modelo, ms=ms, sin_contexto=r.sin_contexto or None,
+             ids=r.fragmentos_ids or None, intencion=intencion,
+             error="respuesta-bloqueada" if r.bloqueada else None)
+    log.info("traza=%s usuario=%s agente=%s ms=%d llamadas=%s bloqueada=%s", traza, usuario_ad, intencion, ms,
+             [c.nombre for c in r.llamadas], r.bloqueada)
+
+    base: dict[str, Any] = {"modelo": r.modelo, "ms": ms, "traza_id": traza, "cuota": cuota.consultar(usuario_ad)}
+    if r.llamadas:
+        return {"tipo": "llamadas", "llamadas": [{"id": c.id, "nombre": c.nombre, "argumentos": c.argumentos}
+                                                 for c in r.llamadas], **base}
+    return {"tipo": "respuesta", "respuesta": r.texto, "fuentes": r.fuentes, "sin_contexto": r.sin_contexto,
+            "bloqueada": r.bloqueada, **base}

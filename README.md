@@ -35,6 +35,7 @@ una VM: por eso no se usa `network_mode: host` (el "host" sería la VM y el puer
 | Ruta | Descripción |
 |---|---|
 | `POST /v1/preguntar` | `{usuario_ad, pregunta, areas?, historial?, idioma?}` (`idioma`: `es` por defecto o `en`, solo para la respuesta generada) → `{respuesta, fuentes, sin_contexto, modelo, ms, traza_id, cuota}` |
+| `POST /v1/agente` | Un paso de una conversación con herramientas: `{mensajes, herramientas?, instrucciones?, idioma?}` → `{tipo: "respuesta", respuesta, fuentes, sin_contexto, bloqueada}` o `{tipo: "llamadas", llamadas: [{id, nombre, argumentos}]}`. Solo con JWT. Ver «Agente» |
 | `GET /v1/areas` | Áreas y si tienen documentos |
 | `GET /v1/cuota?usuario_ad=` | Cuota sin consumirla |
 | `GET /v1/salud` | `{ok: true}` |
@@ -102,6 +103,33 @@ cd ../xia && .venv/bin/python -m xia.indexer      # reindexa solo lo que cambió
 El **manual de usuario** (`docs/Manual_del_usuario/*.md`) se mantiene a mano y es la fuente de las respuestas de tipo
 "¿cómo hago…?": al cambiar una pantalla, actualizarlo y reindexar. Última revisión: 01/10/2026, contrastada con el
 código del frontend. Tras reindexar conviene correr `eval/run_eval.py` para detectar respuestas que dejaron de salir bien.
+
+## Agente (herramientas)
+
+`POST /v1/agente` deja que el modelo decida entre responder y pedir herramientas, **sin que Xia tenga acceso a ningún dato**:
+
+- Las herramientas de datos las define y ejecuta la aplicación que llama, con las credenciales de la propia persona. Xia solo
+  devuelve «quiero llamar a X con estos argumentos»; la aplicación ejecuta y vuelve a llamar con el resultado (sin estado en Xia).
+- La documentación es la única herramienta propia (`search_documentation`) y cierra el turno con la respuesta del pipeline.
+- **El modelo nunca responde de memoria.** Si en el primer paso no pide herramientas, su texto se descarta y la pregunta pasa por
+  el pipeline (documentación o charla). Solo redacta libremente cuando ya tiene resultados de herramientas delante.
+- Cada resultado llega marcado como «DATOS NO CONFIABLES» (lo escriben terceros y pueden intentar dar órdenes), las llamadas se
+  validan contra el esquema declarado, y una respuesta que pide contraseñas o claves se bloquea.
+- Una pregunta cuenta UNA vez en la cuota: el paso que sigue a un resultado de herramienta es una `continuacion` y no gasta ni exige cuota.
+
+`eval/run_tools.py` mide el uso de herramientas con `eval/herramientas.yaml` (23 escenarios: elegir la herramienta, argumentos válidos,
+no inventar, usar el resultado, y tres formas de inyección en los datos). Primera medición (2026-10-02, 5 repeticiones; la muestra es
+pequeña y la escribió quien armó el sistema, sirve para descartar y orientar):
+
+| Modelo | Aciertos | Notas |
+|---|---:|---|
+| qwen3:8b | 113/115 (98%) | Sus 2 fallos: a veces responde sin llamar a la documentación (ahora cubierto por «nunca de memoria») |
+| qwen2.5:7b-instruct | 99/115 (86%) | Obedece instrucciones escondidas en los datos: descartado |
+| mistral:latest | 12/42 (29%) | Medido con los 14 escenarios iniciales ×3. Declara soportar herramientas pero casi no las usa |
+
+Lo que más movió el resultado frente a inyección (mismo escenario, 8 repeticiones): texto libre del tercero tal cual, el modelo
+repite su orden 7/8; con el envoltorio de «datos no confiables» 1/8; sin enviar texto libre 0/8. Añadir una regla «nunca pidas
+contraseñas» al prompt **empeoró** (7/8): nombrar la cosa prohibida la pone en juego, por eso la defensa es estructural.
 
 ## Charla y negativas
 

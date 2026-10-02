@@ -10,9 +10,9 @@ import psycopg
 from fastapi import FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-from xia import acceso, cuota, db, intencion, servicio
+from xia import acceso, agente, cuota, db, intencion, servicio
 from xia.errores import XiaError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
@@ -51,6 +51,49 @@ class PreguntaIn(BaseModel):
     idioma: Literal["es", "en"] = "es"
 
 
+_NOMBRE_HERRAMIENTA = r"^[A-Za-z_][A-Za-z0-9_]{0,63}$"
+
+
+class LlamadaIn(BaseModel):
+    nombre: str = Field(pattern=_NOMBRE_HERRAMIENTA)
+    argumentos: dict[str, Any] = Field(default_factory=dict)
+
+
+class MensajeAgenteIn(BaseModel):
+    rol: Literal["user", "assistant", "tool"]
+    texto: str = Field(default="", max_length=12000)
+    llamadas: list[LlamadaIn] | None = Field(default=None, max_length=8)  # solo en mensajes del asistente
+    herramienta: str | None = Field(default=None, pattern=_NOMBRE_HERRAMIENTA)  # solo en resultados de herramienta
+
+
+class HerramientaIn(BaseModel):
+    nombre: str = Field(pattern=_NOMBRE_HERRAMIENTA)
+    descripcion: str = Field(default="", max_length=800)
+    parametros: dict[str, Any] | None = None
+
+    @field_validator("nombre")
+    @classmethod
+    def _no_reservada(cls, v: str) -> str:
+        if v == agente.HERRAMIENTA_DOCUMENTACION:
+            raise ValueError("nombre reservado: es una herramienta propia de Xia")
+        return v
+
+
+class AgenteIn(BaseModel):
+    """Un paso de la conversación con herramientas. Sin estado: el cliente envía todo lo necesario cada vez."""
+    mensajes: list[MensajeAgenteIn] = Field(min_length=1, max_length=40)
+    herramientas: list[HerramientaIn] = Field(default_factory=list, max_length=12)
+    # Reglas propias de la aplicación (confiables: las pone ella, no la persona). Se añaden a las de Xia.
+    instrucciones: str | None = Field(default=None, max_length=2000)
+    idioma: Literal["es", "en"] = "es"
+
+    @model_validator(mode="after")
+    def _termina_en_persona_o_resultado(self) -> "AgenteIn":
+        if self.mensajes[-1].rol == "assistant":
+            raise ValueError("el último mensaje debe ser de la persona o un resultado de herramienta")
+        return self
+
+
 @app.exception_handler(XiaError)
 async def _xia_error(_: Request, e: XiaError) -> JSONResponse:
     headers = {"Retry-After": str(e.reintentar_en_segundos)} if e.reintentar_en_segundos is not None else None
@@ -84,6 +127,14 @@ def preguntar(cuerpo: PreguntaIn, authorization: str | None = Header(default=Non
     historial = [t.model_dump() for t in cuerpo.historial] if cuerpo.historial else None
     identidad = acceso.identificar(authorization, cuerpo.usuario_ad)
     return servicio.responder(identidad, cuerpo.pregunta.strip(), cuerpo.areas, historial, cuerpo.idioma)
+
+
+@app.post("/v1/agente")
+def agente_paso(cuerpo: AgenteIn, authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    """Un paso del agente: responde, o pide que la aplicación ejecute herramientas y vuelva con los resultados."""
+    identidad = acceso.identificar(authorization, None)
+    return servicio.responder_agente(identidad, [m.model_dump() for m in cuerpo.mensajes],
+                                     [h.model_dump() for h in cuerpo.herramientas], cuerpo.instrucciones, cuerpo.idioma)
 
 
 @app.get("/v1/cuota")

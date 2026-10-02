@@ -60,3 +60,28 @@ def generar(mensajes: list[dict[str, str]], modelo: str | None = None, temperatu
     finally:
         _cola.release()
     return data["message"]["content"].strip()
+
+
+def conversar(mensajes: list[dict[str, Any]], herramientas: list[dict[str, Any]], modelo: str | None = None,
+              temperatura: float = 0.1) -> dict[str, Any]:
+    """Un turno del modelo con herramientas. Devuelve el mensaje completo: `content` y, si pidió herramientas, `tool_calls`."""
+    s = get_settings()
+    if not _cola.acquire(timeout=s.espera_cola_s):
+        raise XiaError("demasiadas-peticiones", "Hay muchas consultas en curso. Intenta de nuevo en unos segundos.", 429,
+                       reintentar_en_segundos=10)
+    try:
+        data = _post(
+            "/api/chat",
+            {
+                "model": modelo or s.modelo_generacion,
+                "messages": mensajes,
+                "tools": herramientas,
+                "stream": False,
+                "think": s.pensar,
+                "keep_alive": s.ollama_keep_alive,
+                "options": {"temperature": temperatura, "num_ctx": s.ollama_num_ctx},
+            },
+        )
+    finally:
+        _cola.release()
+    return data["message"]

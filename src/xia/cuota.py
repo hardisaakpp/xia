@@ -1,4 +1,6 @@
-"""Cuota por usuario en ventana deslizante, calculada sobre la tabla de auditoría `consultas`."""
+"""Cuota por usuario en ventana deslizante, calculada sobre la tabla de auditoría `consultas`.
+
+No cuentan la charla ni las continuaciones del agente (el segundo paso de una pregunta que ya se contó)."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -15,7 +17,7 @@ def consultar(usuario_ad: str) -> dict[str, Any]:
     with db.pool().connection() as conn:
         usadas, mas_antigua = conn.execute(
             "SELECT count(*), min(creada) FROM consultas "
-            "WHERE usuario_ad = %s AND error IS NULL AND intencion IS DISTINCT FROM 'charla' AND creada > now() - %s",
+            "WHERE usuario_ad = %s AND error IS NULL AND intencion IS DISTINCT FROM 'charla' AND intencion IS DISTINCT FROM 'continuacion' AND creada > now() - %s",
             (usuario_ad, ventana),
         ).fetchone()
 
