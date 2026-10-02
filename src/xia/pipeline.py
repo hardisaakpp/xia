@@ -12,26 +12,28 @@ from xia.intencion import es_charla
 from xia.llm import embeber, generar
 from xia.retrieval import Recuperado, recuperar
 
+_IDIOMAS = {"es": "español", "en": "English"}
+
 MARCA_SIN_INFO = "NO_HAY_INFORMACION"
 MENSAJE_SIN_CONTEXTO = "No encontré información sobre eso en la documentación disponible."
 
-_SISTEMA_CHARLA = """Eres Xia, el asistente virtual de SCNEXUS. Estás conversando con una persona de la organización.
+_SISTEMA_CHARLA = """Eres Xia, el asistente virtual de {organizacion}. Estás conversando con una persona de la organización.
 
 Lo que SÍ haces: respondes preguntas sobre la documentación publicada de la organización y citas las fuentes. Documentación disponible ahora: {temas}.
 Lo que NO haces: no ves datos en vivo (pedidos, inventarios, saldos), no ejecutas acciones en los sistemas y no respondes temas ajenos a esa documentación.
 
 Reglas:
-- Responde en español, con calidez y brevedad (1 a 3 frases).
+- Responde en {idioma}, con calidez y brevedad (1 a 3 frases).
 - Si saludan, saluda y ofrece ayuda. Si agradecen, responde con amabilidad. Si se despiden, despídete.
 - Si preguntan quién eres o qué puedes hacer, explícalo con lo anterior{ejemplo}.
 - No inventes nada sobre ti, sobre la organización ni sobre sus sistemas."""
 
-_SISTEMA = f"""Eres Xia, el asistente de SCNEXUS. Respondes preguntas usando ÚNICAMENTE los fragmentos de documentación que se te entregan.
+_SISTEMA = f"""Eres Xia, el asistente de {{organizacion}}. Respondes preguntas usando ÚNICAMENTE los fragmentos de documentación que se te entregan.
 
 Reglas:
 - Si los fragmentos no contienen la respuesta, responde exactamente: {MARCA_SIN_INFO}
 - No inventes datos, pasos, nombres de endpoints, estados ni valores que no estén en los fragmentos.
-- Responde en español, de forma clara y breve.
+- Responde en {{idioma}}, de forma clara y breve.
 - Al final de cada afirmación indica el número del fragmento que la respalda, así: [1] o [2][3]."""
 
 _SISTEMA_REFORMULAR = """Reescribe la ÚLTIMA pregunta del usuario para que se entienda sola, sin necesitar la conversación previa.
@@ -106,7 +108,7 @@ def resolver_areas(solicitadas: list[str] | None, permitidas: frozenset[str] | N
     if not con_docs:
         if permitidas is not None and not permitidas:
             raise XiaError("sin-acceso", "Tu usuario aún no tiene acceso a ninguna documentación del asistente. "
-                                         "Solicítalo al administrador de SCNexus.", 403)
+                                         f"Solicítalo al administrador de {get_settings().organizacion}.", 403)
         raise XiaError("sin-areas", "No hay documentación publicada para consultar todavía.", 404)
     return con_docs
 
@@ -135,13 +137,14 @@ def mensaje_sin_contexto(codigos: list[str]) -> str:
 
 
 def _charlar(pregunta: str, historial: list[dict[str, str]] | None, modelo: str,
-             permitidas: frozenset[str] | None = None) -> Resultado:
+             permitidas: frozenset[str] | None = None, idioma: str = "es") -> Resultado:
     """Responde saludos, agradecimientos y preguntas sobre Xia sin consultar la documentación.
     Solo menciona las áreas que el usuario puede ver: el catálogo completo también es información."""
     catalogo = _catalogo(None if permitidas is None else sorted(permitidas))
     temas = ", ".join(nombre for nombre, _ in catalogo) or "aún no hay documentación publicada"
     ejemplo = next((e[0] for _, e in catalogo if e), None)
-    sistema = _SISTEMA_CHARLA.format(temas=temas, ejemplo=f' e invita a preguntar, por ejemplo: «{ejemplo}»' if ejemplo else "")
+    sistema = _SISTEMA_CHARLA.format(temas=temas, ejemplo=f' e invita a preguntar, por ejemplo: «{ejemplo}»' if ejemplo else "",
+                                     organizacion=get_settings().organizacion, idioma=_IDIOMAS[idioma])
     previos = [{"role": "user" if t["rol"] == "user" else "assistant", "content": t["texto"][:_MAX_CHARS_TURNO]}
                for t in (historial or [])[-_TURNOS_REFORMULACION:]]
     texto = generar([{"role": "system", "content": sistema}, *previos, {"role": "user", "content": pregunta}],
@@ -200,7 +203,8 @@ def buscar(pregunta: str, areas: list[str], vector: list[float] | None = None,
 
 
 def ejecutar(pregunta: str, areas: list[str] | None, modelo: str | None = None,
-             historial: list[dict[str, str]] | None = None, alcance: Alcance | None = None) -> Resultado:
+             historial: list[dict[str, str]] | None = None, alcance: Alcance | None = None,
+             idioma: str = "es") -> Resultado:
     """`alcance`: qué documentación puede ver el usuario (None = toda: evaluación y modo desarrollo)."""
     s = get_settings()
     modelo = modelo or s.modelo_generacion
@@ -208,7 +212,7 @@ def ejecutar(pregunta: str, areas: list[str] | None, modelo: str | None = None,
     # La charla se decide con el mensaje ORIGINAL, antes de reformular: "gracias" no debe mezclarse con el historial.
     vector = embeber([pregunta])[0]
     if es_charla(pregunta, vector, modelo):
-        return _charlar(pregunta, historial, modelo, alcance.areas if alcance else None)
+        return _charlar(pregunta, historial, modelo, alcance.areas if alcance else None, idioma)
 
     areas_consultadas = resolver_areas(areas, alcance.areas if alcance else None)
     # Sin historial no se paga la llamada extra al modelo.
@@ -224,7 +228,8 @@ def ejecutar(pregunta: str, areas: list[str] | None, modelo: str | None = None,
         return base  # Sin contexto confiable: no se gasta una generación (ni se arriesga a inventar).
 
     texto = generar(
-        [{"role": "system", "content": _SISTEMA}, {"role": "user", "content": _prompt_usuario(efectiva, fragmentos)}],
+        [{"role": "system", "content": _SISTEMA.format(organizacion=s.organizacion, idioma=_IDIOMAS[idioma])},
+         {"role": "user", "content": _prompt_usuario(efectiva, fragmentos)}],
         modelo,
     )
     if _SIN_INFO.search(texto):

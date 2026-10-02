@@ -24,7 +24,7 @@ def _auditar(traza: str, usuario_ad: str, pregunta: str, areas: list[str], *, mo
 
 
 def responder(identidad: acceso.Identidad, pregunta: str, areas: list[str] | None,
-              historial: list[dict[str, str]] | None = None) -> dict[str, Any]:
+              historial: list[dict[str, str]] | None = None, idioma: str = "es") -> dict[str, Any]:
     usuario_ad = identidad.usuario
     traza = str(uuid.uuid4())
     inicio = time.perf_counter()
@@ -39,7 +39,8 @@ def responder(identidad: acceso.Identidad, pregunta: str, areas: list[str] | Non
         raise err
 
     try:
-        r = pipeline.ejecutar(pregunta, areas, historial=historial, alcance=acceso.alcance(identidad))
+        r = pipeline.ejecutar(pregunta, areas, historial=historial, alcance=acceso.alcance(identidad),
+                              idioma=idioma)
     except XiaError as e:
         e.traza_id = traza
         _auditar(traza, usuario_ad, pregunta, areas or [], error=e.codigo)

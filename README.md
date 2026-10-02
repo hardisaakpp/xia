@@ -34,7 +34,7 @@ una VM: por eso no se usa `network_mode: host` (el "host" sería la VM y el puer
 
 | Ruta | Descripción |
 |---|---|
-| `POST /v1/preguntar` | `{usuario_ad, pregunta, areas?}` → `{respuesta, fuentes, sin_contexto, modelo, ms, traza_id, cuota}` |
+| `POST /v1/preguntar` | `{usuario_ad, pregunta, areas?, historial?, idioma?}` (`idioma`: `es` por defecto o `en`, solo para la respuesta generada) → `{respuesta, fuentes, sin_contexto, modelo, ms, traza_id, cuota}` |
 | `GET /v1/areas` | Áreas y si tienen documentos |
 | `GET /v1/cuota?usuario_ad=` | Cuota sin consumirla |
 | `GET /v1/salud` | `{ok: true}` |
@@ -42,6 +42,13 @@ una VM: por eso no se usa `network_mode: host` (el "host" sería la VM y el puer
 Errores: `{error, message, traza_id?, cuota?, detalles?}`. El frontend decide por `error` (`cuota-agotada`,
 `sin-modelo`, `peticion-invalida`, `area-no-permitida`, `sin-areas`, `sin-indice`, `demasiadas-peticiones`,
 `error-interno`), no por el status.
+
+## Varios despliegues
+
+El nombre con el que Xia se presenta es configuración: `XIA_ORGANIZACION` (por defecto `SCNEXUS`). Cada despliegue puede tener su
+propia base de datos (`XIA_DATABASE_URL`), su propio catálogo (`XIA_SOURCES_FILE`) y su propia clave de firma, de modo que
+una instancia nunca ve la documentación de otra. Ejemplo real: el asistente de Stockline (`stockline-web/scripts/dev-xia.sh`)
+corre su propia instancia en el puerto 8901 con `XIA_ORGANIZACION=Stockline`.
 
 ## Cómo funciona
 

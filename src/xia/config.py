@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # tras un rato sin uso suma varios segundos a la primera pregunta.
     ollama_keep_alive: str = "30m"
 
+    # Nombre con el que Xia se presenta ("el asistente de {organizacion}"). Cada despliegue pone el suyo.
+    organizacion: str = "SCNEXUS"
+
     sources_file: str = "sources.yaml"
     max_chars_fragmento: int = 1500
 

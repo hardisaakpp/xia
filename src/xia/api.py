@@ -47,6 +47,8 @@ class PreguntaIn(BaseModel):
     # Conversación previa (sin incluir la pregunta actual), la más antigua primero. Opcional: sin ella, cada
     # pregunta se trata sola. Solo se usan los últimos turnos; el cliente puede mandar menos de 10.
     historial: list[Turno] | None = Field(default=None, max_length=10)
+    # Idioma en que se redacta la respuesta generada (los mensajes fijos del servicio siguen en español).
+    idioma: Literal["es", "en"] = "es"
 
 
 @app.exception_handler(XiaError)
@@ -81,7 +83,7 @@ def preguntar(cuerpo: PreguntaIn, authorization: str | None = Header(default=Non
     # `def` (no `async`): corre en el threadpool, porque Ollama y la BD se llaman de forma bloqueante.
     historial = [t.model_dump() for t in cuerpo.historial] if cuerpo.historial else None
     identidad = acceso.identificar(authorization, cuerpo.usuario_ad)
-    return servicio.responder(identidad, cuerpo.pregunta.strip(), cuerpo.areas, historial)
+    return servicio.responder(identidad, cuerpo.pregunta.strip(), cuerpo.areas, historial, cuerpo.idioma)
 
 
 @app.get("/v1/cuota")
